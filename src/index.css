@@ -1,0 +1,75 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
+}
+
+body {
+  @apply m-0 bg-slate-50 text-slate-900 antialiased;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+main > div > section {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  scroll-margin-top: 5.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+
+  main > div > section {
+    scroll-snap-align: none;
+    scroll-snap-stop: normal;
+  }
+}
+
+.section-shell {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+.section-title {
+  @apply text-3xl font-bold text-slate-900 lg:text-4xl;
+}
+
+.section-subtitle {
+  @apply text-sm font-semibold uppercase tracking-wider text-sky-600;
+}
+
+.card {
+  @apply rounded-2xl border border-slate-100 bg-white shadow-soft;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-xl px-6 py-3 font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400;
+}
+
+.btn-primary {
+  @apply btn bg-brand-900 text-white hover:bg-brand-800;
+}
+
+.btn-outline {
+  @apply btn border border-slate-300 bg-white text-slate-800 hover:bg-slate-100;
+}
+
+.btn-whatsapp {
+  @apply btn bg-[#25D366] text-white hover:bg-[#20BA5C];
+}
+
+.input-base {
+  @apply mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/25;
+}

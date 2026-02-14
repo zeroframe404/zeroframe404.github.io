@@ -1,0 +1,265 @@
+import { CheckCircle2, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+import { insertLead } from '../../lib/leads'
+
+interface CotizacionFormValues {
+  tipo_vehiculo: string
+  nombre: string
+  telefono: string
+  email: string
+  marca_modelo: string
+  anio: string
+  localidad: string
+  uso: string
+  cobertura_deseada: string
+  mensaje: string
+  consentimiento: boolean
+}
+
+const buildInitialValues = (insuranceType?: string): CotizacionFormValues => ({
+  tipo_vehiculo: insuranceType ?? '',
+  nombre: '',
+  telefono: '',
+  email: '',
+  marca_modelo: '',
+  anio: '',
+  localidad: '',
+  uso: '',
+  cobertura_deseada: '',
+  mensaje: '',
+  consentimiento: false
+})
+
+interface CotizacionFormProps {
+  sourcePage?: string
+  insuranceType?: string
+}
+
+export default function CotizacionForm({
+  sourcePage = 'Cotizacion',
+  insuranceType
+}: CotizacionFormProps) {
+  const [values, setValues] = useState<CotizacionFormValues>(() => buildInitialValues(insuranceType))
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const updateField = <T extends keyof CotizacionFormValues>(
+    field: T,
+    value: CotizacionFormValues[T]
+  ) => {
+    setValues((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const hasRequiredValues =
+    values.tipo_vehiculo &&
+    values.nombre.trim() &&
+    values.telefono.trim() &&
+    values.marca_modelo.trim() &&
+    values.anio.trim() &&
+    values.localidad.trim() &&
+    values.consentimiento
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!hasRequiredValues) {
+      setError('Completá todos los campos obligatorios para continuar.')
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      await insertLead({
+        tipo_formulario: 'cotizacion',
+        tipo_vehiculo: values.tipo_vehiculo,
+        nombre: values.nombre.trim(),
+        telefono: values.telefono.trim(),
+        email: values.email.trim() || undefined,
+        marca_modelo: values.marca_modelo.trim(),
+        anio: values.anio.trim(),
+        localidad: values.localidad.trim(),
+        uso: values.uso,
+        cobertura_deseada: values.cobertura_deseada,
+        mensaje: values.mensaje.trim() || undefined,
+        consentimiento: values.consentimiento,
+        source_page: sourcePage
+      })
+
+      setSubmitted(true)
+      setValues(buildInitialValues(insuranceType))
+    } catch {
+      setError('No pudimos enviar tu solicitud. Probá de nuevo en unos minutos.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="py-12 text-center">
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+          <CheckCircle2 className="h-10 w-10 text-green-600" />
+        </div>
+        <h3 className="mb-2 text-2xl font-bold text-slate-900">¡Listo!</h3>
+        <p className="mb-3 text-slate-600">
+          Recibimos tu solicitud. Te contactamos a la brevedad por WhatsApp o
+          teléfono.
+        </p>
+        <p className="text-sm text-slate-500">Respondemos en el día hábil.</p>
+      </div>
+    )
+  }
+
+  return (
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo de seguro</p>
+        <p className="text-sm font-semibold text-slate-900">{values.tipo_vehiculo || 'Sin seleccionar'}</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="text-sm font-medium text-slate-700">
+          Nombre y apellido *
+          <input
+            className="input-base"
+            name="nombre"
+            placeholder="Tu nombre completo"
+            value={values.nombre}
+            onChange={(event) => updateField('nombre', event.target.value)}
+          />
+        </label>
+        <label className="text-sm font-medium text-slate-700">
+          Teléfono / WhatsApp *
+          <input
+            className="input-base"
+            name="telefono"
+            placeholder="11 1234-5678"
+            value={values.telefono}
+            onChange={(event) => updateField('telefono', event.target.value)}
+          />
+        </label>
+      </div>
+
+      <label className="text-sm font-medium text-slate-700">
+        Email (opcional)
+        <input
+          type="email"
+          className="input-base"
+          name="email"
+          placeholder="tu@email.com"
+          value={values.email}
+          onChange={(event) => updateField('email', event.target.value)}
+        />
+      </label>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="text-sm font-medium text-slate-700">
+          Marca y modelo *
+          <input
+            className="input-base"
+            name="marca_modelo"
+            placeholder="Ej: Fiat Cronos"
+            value={values.marca_modelo}
+            onChange={(event) => updateField('marca_modelo', event.target.value)}
+          />
+        </label>
+        <label className="text-sm font-medium text-slate-700">
+          Año *
+          <input
+            className="input-base"
+            name="anio"
+            placeholder="Ej: 2022"
+            value={values.anio}
+            onChange={(event) => updateField('anio', event.target.value)}
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="text-sm font-medium text-slate-700">
+          Localidad *
+          <input
+            className="input-base"
+            name="localidad"
+            placeholder="Tu localidad"
+            value={values.localidad}
+            onChange={(event) => updateField('localidad', event.target.value)}
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Uso
+          <select
+            className="input-base"
+            value={values.uso}
+            onChange={(event) => updateField('uso', event.target.value)}
+          >
+            <option value="">Seleccioná</option>
+            <option value="particular">Particular</option>
+            <option value="trabajo">Trabajo / Comercial</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="text-sm font-medium text-slate-700">
+        Cobertura deseada
+        <select
+          className="input-base"
+          value={values.cobertura_deseada}
+          onChange={(event) => updateField('cobertura_deseada', event.target.value)}
+        >
+          <option value="">Seleccioná una opción</option>
+          <option value="responsabilidad_civil">Responsabilidad Civil</option>
+          <option value="terceros_completo">Terceros Completo</option>
+          <option value="todo_riesgo">Todo Riesgo</option>
+        </select>
+      </label>
+
+      <label className="text-sm font-medium text-slate-700">
+        Comentarios adicionales
+        <textarea
+          className="input-base min-h-24"
+          placeholder="¿Algo más que quieras contarnos?"
+          value={values.mensaje}
+          onChange={(event) => updateField('mensaje', event.target.value)}
+        />
+      </label>
+
+      <label className="flex items-start gap-3 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
+        <input
+          className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-900"
+          type="checkbox"
+          checked={values.consentimiento}
+          onChange={(event) => updateField('consentimiento', event.target.checked)}
+        />
+        Acepto que me contacten por WhatsApp o llamada para recibir la
+        cotización. *
+      </label>
+
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+
+      <button type="submit" className="btn-primary w-full py-4 text-lg" disabled={isSubmitting}>
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Enviando...
+          </>
+        ) : (
+          'Solicitar Cotización'
+        )}
+      </button>
+
+      <p className="text-center text-xs text-slate-500">
+        La cotización es orientativa y sin compromiso. Depende de evaluación y
+        condiciones de la aseguradora.
+      </p>
+    </form>
+  )
+}
