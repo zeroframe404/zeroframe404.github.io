@@ -1,36 +1,88 @@
-import { motion, useReducedMotion } from 'framer-motion'
-import { useEffect } from 'react'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useAdaptiveSectionSnap } from '../../hooks/useAdaptiveSectionSnap'
+import {
+  captureSanitizedMarkup,
+  isCacheableRoute,
+  readPageSnapshot,
+  savePageSnapshot
+} from '../../lib/pageCache'
+import { prefetchAllSectionsInBackground } from '../../lib/prefetchSections'
 import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
 import WhatsAppFloat from './WhatsAppFloat'
 
+function RouteCacheFallback({ pathname }: { pathname: string }) {
+  const cachedHtml = useMemo(() => readPageSnapshot(pathname), [pathname])
+
+  if (!cachedHtml) {
+    return (
+      <div className="section-shell py-12 text-center text-sm text-slate-500">
+        Cargando...
+      </div>
+    )
+  }
+
+  return (
+    <div
+      aria-hidden="true"
+      className="route-cache-fallback pointer-events-none select-none"
+      dangerouslySetInnerHTML={{ __html: cachedHtml }}
+    />
+  )
+}
+
 export default function SiteLayout() {
-  useAdaptiveSectionSnap()
   const location = useLocation()
-  const prefersReducedMotion = useReducedMotion()
+  const enableHomeSnap = location.pathname === '/Home'
+  const outletContainerRef = useRef<HTMLDivElement | null>(null)
+  useAdaptiveSectionSnap(enableHomeSnap)
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [location.pathname])
+
+  useEffect(() => {
+    prefetchAllSectionsInBackground()
+  }, [])
+
+  useEffect(() => {
+    if (!isCacheableRoute(location.pathname)) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      const container = outletContainerRef.current
+      if (!container) {
+        return
+      }
+
+      const snapshot = captureSanitizedMarkup(container)
+      if (!snapshot) {
+        return
+      }
+
+      savePageSnapshot(location.pathname, snapshot)
+    }, 900)
+
+    return () => window.clearTimeout(timer)
   }, [location.pathname])
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <SiteHeader />
       <main className="flex-1 pt-16 lg:pt-20">
-        <motion.div
+        <div
           key={location.pathname}
-          initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
-          animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-          transition={
-            prefersReducedMotion
-              ? { duration: 0.16, ease: 'easeOut' }
-              : { duration: 0.38, ease: [0.22, 1, 0.36, 1] }
-          }
+          ref={outletContainerRef}
+          className="route-fade-in"
         >
-          <Outlet />
-        </motion.div>
+          <Suspense
+            fallback={<RouteCacheFallback pathname={location.pathname} />}
+          >
+            <Outlet />
+          </Suspense>
+        </div>
       </main>
       <SiteFooter />
       <WhatsAppFloat />

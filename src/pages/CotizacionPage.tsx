@@ -1,8 +1,9 @@
 import { ArrowRight, ChevronDown, Handshake, MessageCircle, ShieldCheck } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import WhatsAppIcon from '../components/icons/WhatsAppIcon'
-import CotizacionForm from '../components/forms/CotizacionForm'
 import { WHATSAPP_COTIZACION_MESSAGE, buildWhatsAppUrl } from '../config/site'
+
+const CotizacionForm = lazy(() => import('../components/forms/CotizacionForm'))
 
 const highlights = [
   { label: 'Respondemos en el dia', icon: Handshake },
@@ -267,14 +268,14 @@ export default function CotizacionPage() {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap gap-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {activeCategory.items.map((item) => {
                     const isSelected = selectedInsuranceType === item.title
 
                     return (
                       <article
                         key={item.title}
-                        className={`flex min-w-[220px] flex-1 basis-[280px] flex-col rounded-2xl border bg-white p-5 shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+                        className={`flex flex-col rounded-2xl border bg-white p-5 shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
                           isCategoryMenuOpen ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
                         } ${
                           isSelected ? 'border-brand-200 ring-2 ring-brand-900/20' : 'border-slate-100'
@@ -317,7 +318,15 @@ export default function CotizacionPage() {
               </div>
 
               <div className="rounded-2xl bg-white p-6 shadow-xl sm:p-8 lg:p-10">
-                <CotizacionForm key={selectedInsuranceType} sourcePage="Cotizacion" insuranceType={selectedInsuranceType} />
+                <Suspense
+                  fallback={
+                    <p className="py-6 text-center text-sm text-slate-500">
+                      Cargando formulario...
+                    </p>
+                  }
+                >
+                  <CotizacionForm key={selectedInsuranceType} sourcePage="Cotizacion" insuranceType={selectedInsuranceType} />
+                </Suspense>
               </div>
             </>
           ) : (

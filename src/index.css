@@ -8,7 +8,6 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-snap-type: y proximity;
 }
 
 body {
@@ -20,22 +19,13 @@ body {
   min-height: 100vh;
 }
 
-main > div > section {
-  scroll-snap-align: start;
-  scroll-snap-stop: normal;
-  scroll-margin-top: 5.5rem;
+.route-fade-in {
+  animation: route-fade-in 240ms ease-out;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-    scroll-snap-type: none;
-  }
-
-  main > div > section {
-    scroll-snap-align: none;
-    scroll-snap-stop: normal;
-  }
+.route-cache-fallback {
+  opacity: 0.86;
+  filter: saturate(0.92);
 }
 
 .section-shell {
@@ -76,4 +66,59 @@ main > div > section {
 
 .input-base {
   @apply mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/25;
+}
+
+.snap-home {
+  scroll-snap-type: none;
+}
+
+.whatsapp-float {
+  animation: whatsapp-pop-in 380ms ease-out 220ms both;
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .snap-home {
+    scroll-snap-type: y proximity;
+  }
+
+  .snap-home > section {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+    scroll-margin-top: 5.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .route-fade-in,
+  .whatsapp-float {
+    animation: none;
+  }
+}
+
+@keyframes route-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes whatsapp-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

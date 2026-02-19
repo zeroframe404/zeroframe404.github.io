@@ -1,4 +1,4 @@
-﻿import { Clock3, Mail, MapPin, Phone } from 'lucide-react'
+import { Clock3, Mail, MapPin, Phone } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   CONTACT_PHONE,
@@ -15,13 +15,17 @@ export default function SiteFooter() {
           <div>
             <div className="mb-4 flex items-center gap-3">
               <img
-                src="/logo.png"
+                src="/optimized/logo-96.webp"
                 alt={`Logo ${SITE_NAME}`}
-                className="h-12 w-12 rounded-full border border-white/20 bg-white object-cover p-0.5"
+                width={48}
+                height={48}
+                loading="lazy"
+                decoding="async"
+                className="h-11 w-11 rounded-full border border-white/20 bg-white object-cover p-0.5 sm:h-12 sm:w-12"
               />
-              <div>
-                <h3 className="text-lg font-bold">{SITE_NAME}</h3>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-300">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold sm:text-lg">{SITE_NAME}</h3>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-300 sm:text-xs">
                   {LICENSE_NUMBER}
                 </p>
               </div>
@@ -56,18 +60,18 @@ export default function SiteFooter() {
             </h4>
             <ul className="space-y-3 text-sm text-slate-300">
               <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-sky-300" /> {CONTACT_PHONE}
+                <Phone className="h-4 w-4 flex-none text-sky-300" /> {CONTACT_PHONE}
               </li>
               <li className="flex items-start gap-2">
-                <Mail className="mt-0.5 h-4 w-4 text-sky-300" />
-                <div>
-                  <p>Avellaneda: segurosdocksud@gmail.com</p>
-                  <p>Lanus: Seguroslanus2@gmail.com</p>
+                <Mail className="mt-0.5 h-4 w-4 flex-none text-sky-300" />
+                <div className="min-w-0 space-y-1">
+                  <p className="break-words">Avellaneda: segurosdocksud@gmail.com</p>
+                  <p className="break-words">Lanús: seguroslanus2@gmail.com</p>
                 </div>
               </li>
               <li className="flex items-start gap-2">
-                <MapPin className="mt-0.5 h-4 w-4 text-sky-300" /> Dock Sud,
-                Avellaneda, Buenos Aires
+                <MapPin className="mt-0.5 h-4 w-4 flex-none text-sky-300" />
+                <span>Dock Sud, Avellaneda, Buenos Aires</span>
               </li>
             </ul>
           </div>
@@ -76,8 +80,8 @@ export default function SiteFooter() {
             <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">
               Horarios
             </h4>
-            <div className="flex gap-2 text-sm text-slate-300">
-              <Clock3 className="mt-0.5 h-4 w-4 text-sky-300" />
+            <div className="flex gap-2 text-sm leading-relaxed text-slate-300">
+              <Clock3 className="mt-0.5 h-4 w-4 flex-none text-sky-300" />
               <div className="space-y-1">
                 <p>
                   <span className="font-semibold text-white">Lunes:</span> Cerrado

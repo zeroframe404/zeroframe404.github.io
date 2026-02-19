@@ -37,9 +37,20 @@ npm run dev
 ## Build de producción
 
 ```bash
+npm run optimize:images
 npm run build
 npm run preview
 ```
+
+## Cache local (cookies + storage)
+
+El sitio incluye cache local para acelerar visitas repetidas:
+
+- `Service Worker` (`public/sw.js`) para cachear assets estáticos.
+- Snapshot de todas las páginas navegadas en `localStorage` con metadatos en cookie:
+  - cookie: `sd_page_cache_meta`
+  - almacenamiento: `sd:page-cache:1:*`
+- Prefetch en segundo plano de todas las secciones y formularios lazy tras el primer ingreso.
 
 ## Tests
 

@@ -14,6 +14,7 @@ import {
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import WhatsAppIcon from '../components/icons/WhatsAppIcon'
+import { useCanAnimate, useIsDesktop } from '../hooks/useCanAnimate'
 import {
   WHATSAPP_COTIZACION_MESSAGE,
   buildWhatsAppUrl
@@ -171,11 +172,13 @@ const heroStatItemVariants: Variants = {
 
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const canAnimate = useCanAnimate()
+  const isDesktop = useIsDesktop()
   const whatsappUrl = buildWhatsAppUrl(WHATSAPP_COTIZACION_MESSAGE)
   const avellanedaWhatsAppUrl = `https://wa.me/5491140830416?text=${encodeURIComponent(WHATSAPP_COTIZACION_MESSAGE)}`
 
   return (
-    <div>
+    <div className="snap-home">
       <section className="relative flex min-h-[100dvh] items-center overflow-hidden bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 py-20 lg:py-24">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute left-10 top-20 h-72 w-72 rounded-full bg-sky-400 blur-3xl" />
@@ -191,40 +194,40 @@ export default function HomePage() {
 
         <div className="hero-shell relative grid items-center gap-12 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)] lg:gap-12">
           <motion.div
-            initial="hidden"
-            animate="show"
-            variants={heroContentVariants}
+            initial={canAnimate ? 'hidden' : false}
+            animate={canAnimate ? 'show' : undefined}
+            variants={canAnimate ? heroContentVariants : undefined}
             className="text-center lg:text-left"
           >
             <motion.span
-              variants={heroItemVariants}
+              variants={canAnimate ? heroItemVariants : undefined}
               className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-sky-300"
             >
               <ShieldCheck className="h-4 w-4" /> Protección para tu vehículo
             </motion.span>
             <motion.h1
-              variants={heroItemVariants}
+              variants={canAnimate ? heroItemVariants : undefined}
               className="mb-6 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl"
             >
               Asegurá tu <span className="bg-gradient-to-r from-sky-300 to-cyan-300 bg-clip-text text-transparent">Auto o Moto</span> en minutos
             </motion.h1>
             <motion.p
-              variants={heroItemVariants}
+              variants={canAnimate ? heroItemVariants : undefined}
               className="mx-auto mb-8 max-w-xl text-lg text-slate-300 lg:mx-0 lg:text-xl"
             >
               Cotización rápida, asesoramiento humano y cobertura a tu medida. Sin vueltas, sin letra chica.
             </motion.p>
 
-            <motion.div variants={heroItemVariants} className="flex flex-col gap-4 sm:flex-row sm:flex-nowrap sm:justify-center lg:justify-start">
-              <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn-whatsapp shrink-0 whitespace-nowrap px-5 py-3 text-sm md:text-base">
+            <motion.div variants={canAnimate ? heroItemVariants : undefined} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
+              <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn-whatsapp w-full px-5 py-3 text-sm sm:w-auto md:text-base">
                 <WhatsAppIcon className="mr-2 h-5 w-5" tone="white" /> Cotizar por WhatsApp
               </a>
-              <Link to="/Cotizacion" className="btn-outline shrink-0 whitespace-nowrap border-white/30 bg-white/10 px-5 py-3 text-sm text-white hover:bg-white/20 md:text-base">
+              <Link to="/Cotizacion" className="btn-outline w-full border-white/30 bg-white/10 px-5 py-3 text-sm text-white hover:bg-white/20 sm:w-auto md:text-base">
                 <CircleGauge className="mr-2 h-5 w-5" /> Pedir Cotización
               </Link>
               <Link
                 to="/Siniestros"
-                className="btn shrink-0 whitespace-nowrap border border-amber-200 bg-amber-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-amber-300 md:text-base"
+                className="btn w-full border border-amber-200 bg-amber-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-amber-300 sm:w-auto md:text-base"
               >
                 <img
                   src="/SiniestroVector.svg"
@@ -237,70 +240,80 @@ export default function HomePage() {
             </motion.div>
 
             <motion.div
-              variants={heroStatsVariants}
+              variants={canAnimate ? heroStatsVariants : undefined}
               className="mt-10 flex flex-wrap items-center justify-center gap-6 border-t border-white/10 pt-10 lg:justify-start"
             >
-              <motion.div variants={heroStatItemVariants}>
+              <motion.div variants={canAnimate ? heroStatItemVariants : undefined}>
                 <p className="text-3xl font-bold text-white">+500</p>
                 <p className="text-sm text-slate-400">Clientes protegidos</p>
               </motion.div>
               <div className="hidden h-12 w-px bg-white/20 sm:block" />
-              <motion.div variants={heroStatItemVariants}>
+              <motion.div variants={canAnimate ? heroStatItemVariants : undefined}>
                 <p className="text-3xl font-bold text-white">24hs</p>
                 <p className="text-sm text-slate-400">Respuesta garantizada</p>
               </motion.div>
               <div className="hidden h-12 w-px bg-white/20 sm:block" />
-              <motion.div variants={heroStatItemVariants}>
+              <motion.div variants={canAnimate ? heroStatItemVariants : undefined}>
                 <p className="text-3xl font-bold text-white">100%</p>
                 <p className="text-sm text-slate-400">Digital y humano</p>
               </motion.div>
             </motion.div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="relative hidden lg:block"
-          >
-            <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl shadow-black/30">
-              <div className="relative grid aspect-[4/5] grid-cols-2 bg-white">
-                <div className="relative overflow-hidden">
-                  <img
-                    src="/ATMDockSud.png"
-                    alt="Sucursal ATM Dock Sud"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
-                    <p className="text-xs font-semibold tracking-wide text-white">Dock Sud</p>
+          {isDesktop && (
+            <motion.div
+              initial={canAnimate ? { opacity: 0, x: 50 } : false}
+              animate={canAnimate ? { opacity: 1, x: 0 } : undefined}
+              transition={canAnimate ? { duration: 0.7, delay: 0.2 } : undefined}
+              className="relative hidden lg:block"
+            >
+              <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl shadow-black/30">
+                <div className="relative grid aspect-[4/5] grid-cols-2 bg-white">
+                  <div className="relative overflow-hidden">
+                    <img
+                      src="/optimized/atm-dock-sud-480.webp"
+                      alt="Sucursal ATM Dock Sud"
+                      width={355}
+                      height={584}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
+                      <p className="text-xs font-semibold tracking-wide text-white">Dock Sud</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="relative overflow-hidden">
-                  <img
-                    src="/ATMLanus.png"
-                    alt="Sucursal ATM Lanús"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
-                    <p className="text-xs font-semibold tracking-wide text-white">Lanús</p>
+                  <div className="relative overflow-hidden">
+                    <img
+                      src="/optimized/atm-lanus-480.webp"
+                      alt="Sucursal ATM Lanús"
+                      width={294}
+                      height={520}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
+                      <p className="text-xs font-semibold tracking-wide text-white">Lanús</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/80" />
-                <div className="pointer-events-none absolute inset-y-[-6%] left-1/2 w-8 -translate-x-1/2 bg-white/25 blur-md" />
+                  <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/80" />
+                  <div className="pointer-events-none absolute inset-y-[-6%] left-1/2 w-8 -translate-x-1/2 bg-white/25 blur-md" />
+                </div>
               </div>
-            </div>
-            <div className="absolute -bottom-6 -left-6 flex items-center gap-3 rounded-xl bg-white p-4 shadow-xl">
-              <div className="rounded-lg bg-green-100 p-2">
-                <Check className="h-6 w-6 text-green-600" />
+              <div className="absolute -bottom-6 -left-6 flex items-center gap-3 rounded-xl bg-white p-4 shadow-xl">
+                <div className="rounded-lg bg-green-100 p-2">
+                  <Check className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Cobertura activa</p>
+                  <p className="text-xs text-slate-500">Tu vehículo protegido 24/7</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Cobertura activa</p>
-                <p className="text-xs text-slate-500">Tu vehículo protegido 24/7</p>
-              </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          )}
         </div>
       </section>
 
@@ -424,10 +437,10 @@ export default function HomePage() {
                 Escribinos ahora y en minutos tenés tu cotización. Sin compromiso, 100% gratis.
               </p>
               <div className="flex flex-col justify-center gap-4 sm:flex-row">
-                <a href={avellanedaWhatsAppUrl} target="_blank" rel="noreferrer" className="btn-whatsapp px-8 py-4 text-lg">
+                <a href={avellanedaWhatsAppUrl} target="_blank" rel="noreferrer" className="btn-whatsapp w-full px-8 py-4 text-base sm:w-auto sm:text-lg">
                   <WhatsAppIcon className="mr-2 h-5 w-5" tone="white" /> Chatear por WhatsApp
                 </a>
-                <Link to="/Cotizacion" className="btn-outline border-white/30 bg-white/10 px-8 py-4 text-lg text-white hover:bg-white/20">
+                <Link to="/Cotizacion" className="btn-outline w-full border-white/30 bg-white/10 px-8 py-4 text-base text-white hover:bg-white/20 sm:w-auto sm:text-lg">
                   Completar formulario <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </div>

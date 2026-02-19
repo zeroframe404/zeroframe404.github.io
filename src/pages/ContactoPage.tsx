@@ -1,7 +1,9 @@
 import { Clock3, Mail, MapPin, Phone } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { lazy, Suspense, useState } from 'react'
 import WhatsAppIcon from '../components/icons/WhatsAppIcon'
-import ContactoForm from '../components/forms/ContactoForm'
+
+const ContactoForm = lazy(() => import('../components/forms/ContactoForm'))
 
 type BranchValue = {
   branch: string
@@ -44,11 +46,13 @@ const branchEmails: BranchValue[] = [
 const branchMaps = [
   {
     branch: 'Avellaneda',
-    src: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d205.14101989592174!2d-58.34735856971683!3d-34.64822918966067!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a333603e81a575%3A0xcb5e9949a7676583!2sbrokers%20de%20seguros%20avellaneda!5e0!3m2!1sen!2sar!4v1771499473143!5m2!1sen!2sar'
+    src: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d205.14101989592174!2d-58.34735856971683!3d-34.64822918966067!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a333603e81a575%3A0xcb5e9949a7676583!2sbrokers%20de%20seguros%20avellaneda!5e0!3m2!1sen!2sar!4v1771499473143!5m2!1sen!2sar',
+    link: 'https://maps.google.com/?q=ATM+Seguros+Avellaneda'
   },
   {
     branch: 'Lanus',
-    src: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d204.9638994516236!2d-58.35957901396295!3d-34.71974597568886!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a332baa311bba1%3A0x6d7c4adeeb0c8f42!2sAtm%20Seguros!5e0!3m2!1sen!2sar!4v1771499511741!5m2!1sen!2sar'
+    src: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d204.9638994516236!2d-58.35957901396295!3d-34.71974597568886!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a332baa311bba1%3A0x6d7c4adeeb0c8f42!2sAtm%20Seguros!5e0!3m2!1sen!2sar!4v1771499511741!5m2!1sen!2sar',
+    link: 'https://maps.google.com/?q=ATM+Seguros+Lanus'
   }
 ]
 
@@ -81,6 +85,12 @@ const cards: ContactCard[] = [
 ]
 
 export default function ContactoPage() {
+  const [openedMaps, setOpenedMaps] = useState<Record<string, boolean>>({})
+
+  const openMap = (branch: string) => {
+    setOpenedMaps((prev) => ({ ...prev, [branch]: true }))
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <section className="bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 py-16 lg:py-24">
@@ -118,7 +128,7 @@ export default function ContactoPage() {
                     {card.branchValues ? (
                       <div className="space-y-1">
                         {card.branchValues.map((branchValue) => (
-                          <p key={`${card.title}-${branchValue.branch}`} className="text-sm">
+                          <p key={`${card.title}-${branchValue.branch}`} className="break-words text-sm">
                             <span className="font-semibold text-slate-700">{branchValue.branch}:</span>{' '}
                             <span className={`font-medium ${card.highlight ? 'text-[#25D366]' : 'text-brand-900'}`}>
                               {branchValue.value}
@@ -196,7 +206,15 @@ export default function ContactoPage() {
           <div>
             <div className="rounded-2xl bg-white p-6 shadow-soft sm:p-8">
               <h2 className="mb-6 text-2xl font-bold text-slate-900">Escribinos</h2>
-              <ContactoForm sourcePage="Contacto" />
+              <Suspense
+                fallback={
+                  <p className="py-6 text-center text-sm text-slate-500">
+                    Cargando formulario...
+                  </p>
+                }
+              >
+                <ContactoForm sourcePage="Contacto" />
+              </Suspense>
             </div>
           </div>
         </div>
@@ -210,27 +228,52 @@ export default function ContactoPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            {branchMaps.map((branchMap) => (
-              <article key={branchMap.branch} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <MapPin className="h-4 w-4 text-brand-900" />
-                  {branchMap.branch}
-                </div>
-                <div className="overflow-hidden rounded-xl border border-slate-200">
-                  <iframe
-                    src={branchMap.src}
-                    title={`Mapa ${branchMap.branch}`}
-                    width="600"
-                    height="450"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    className="h-72 w-full lg:h-80"
-                  />
-                </div>
-              </article>
-            ))}
+            {branchMaps.map((branchMap) => {
+              const isMapOpen = Boolean(openedMaps[branchMap.branch])
+
+              return (
+                <article key={branchMap.branch} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <MapPin className="h-4 w-4 text-brand-900" />
+                    {branchMap.branch}
+                  </div>
+
+                  {isMapOpen ? (
+                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                      <iframe
+                        src={branchMap.src}
+                        title={`Mapa ${branchMap.branch}`}
+                        width="600"
+                        height="450"
+                        style={{ border: 0 }}
+                        allowFullScreen
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        className="h-72 w-full lg:h-80"
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-white p-6 text-center">
+                      <button
+                        type="button"
+                        onClick={() => openMap(branchMap.branch)}
+                        className="btn-primary w-full sm:w-auto"
+                      >
+                        Ver mapa
+                      </button>
+                      <a
+                        href={branchMap.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 block text-sm font-medium text-brand-900 hover:underline"
+                      >
+                        Abrir en Google Maps
+                      </a>
+                    </div>
+                  )}
+                </article>
+              )
+            })}
           </div>
         </div>
       </section>

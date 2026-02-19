@@ -65,6 +65,10 @@ export default function NosotrosPage() {
             <img
               src="https://images.unsplash.com/photo-1556761175-4b46a572b786?w=600&h=500&fit=crop"
               alt="Equipo de asesores"
+              width={600}
+              height={500}
+              loading="lazy"
+              decoding="async"
               className="rounded-2xl shadow-lg"
             />
             <div className="absolute -bottom-6 -left-6 flex items-center gap-3 rounded-xl bg-white p-4 shadow-xl">
