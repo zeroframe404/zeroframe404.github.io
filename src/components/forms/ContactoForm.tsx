@@ -1,7 +1,8 @@
-﻿import { CheckCircle2, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { insertLead } from '../../lib/leads'
+import SimulatedSuccessBadge from './SimulatedSuccessBadge'
 
 interface ContactoFormValues {
   nombre: string
@@ -20,6 +21,9 @@ const initialValues: ContactoFormValues = {
 interface ContactoFormProps {
   sourcePage?: string
 }
+
+const SIMULATED_SUBMIT = true
+const SIMULATED_DELAY_MS = 500
 
 export default function ContactoForm({ sourcePage = 'Contacto' }: ContactoFormProps) {
   const [values, setValues] = useState<ContactoFormValues>(initialValues)
@@ -45,16 +49,23 @@ export default function ContactoForm({ sourcePage = 'Contacto' }: ContactoFormPr
     setIsSubmitting(true)
     setError(null)
 
+    const payload = {
+      tipo_formulario: 'contacto' as const,
+      nombre: values.nombre.trim(),
+      telefono: values.telefono.trim(),
+      motivo_contacto: values.motivo_contacto,
+      mensaje: values.mensaje.trim() || undefined,
+      consentimiento: true,
+      source_page: sourcePage
+    }
+
     try {
-      await insertLead({
-        tipo_formulario: 'contacto',
-        nombre: values.nombre.trim(),
-        telefono: values.telefono.trim(),
-        motivo_contacto: values.motivo_contacto,
-        mensaje: values.mensaje.trim() || undefined,
-        consentimiento: true,
-        source_page: sourcePage
-      })
+      if (SIMULATED_SUBMIT) {
+        await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY_MS))
+        await insertLead(payload).catch(() => null)
+      } else {
+        await insertLead(payload)
+      }
 
       setSubmitted(true)
       setValues(initialValues)
@@ -68,11 +79,9 @@ export default function ContactoForm({ sourcePage = 'Contacto' }: ContactoFormPr
   if (submitted) {
     return (
       <div className="py-8 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-          <CheckCircle2 className="h-8 w-8 text-green-600" />
-        </div>
-        <h3 className="mb-2 text-xl font-bold text-slate-900">¡Mensaje enviado!</h3>
+        <h3 className="mb-2 text-xl font-bold text-slate-900">Envio simulado exitoso</h3>
         <p className="text-slate-600">Te respondemos a la brevedad.</p>
+        <SimulatedSuccessBadge />
       </div>
     )
   }

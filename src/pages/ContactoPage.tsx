@@ -1,5 +1,6 @@
-import { Clock3, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
+import { Clock3, Mail, MapPin, Phone } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import ContactoForm from '../components/forms/ContactoForm'
 
 type BranchValue = {
@@ -10,7 +11,8 @@ type BranchValue = {
 type ContactCard = {
   title: string
   description: string
-  icon: LucideIcon
+  icon?: LucideIcon
+  useWhatsAppIcon?: boolean
   highlight?: boolean
   branchValues?: BranchValue[]
   value?: string
@@ -56,7 +58,7 @@ const cards: ContactCard[] = [
     branchValues: branchContacts,
     description: 'Escribinos cuando quieras',
     highlight: true,
-    icon: MessageCircle
+    useWhatsAppIcon: true
   },
   {
     title: 'Telefono',
@@ -106,7 +108,11 @@ export default function ContactoPage() {
                     <div
                       className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${card.highlight ? 'bg-[#25D366]/10 text-[#25D366]' : 'bg-blue-50 text-brand-900'}`}
                     >
-                      <Icon className="h-6 w-6" />
+                      {card.useWhatsAppIcon ? (
+                        <WhatsAppIcon className="h-6 w-6" />
+                      ) : Icon ? (
+                        <Icon className="h-6 w-6" />
+                      ) : null}
                     </div>
                     <h3 className="mb-1 font-semibold text-slate-900">{card.title}</h3>
                     {card.branchValues ? (

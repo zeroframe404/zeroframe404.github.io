@@ -7,13 +7,13 @@ import {
   Headset,
   MessageCircle,
   ShieldCheck,
-  Star,
   Timer,
   Users,
   ChevronDown
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import {
   WHATSAPP_COTIZACION_MESSAGE,
   buildWhatsAppUrl
@@ -42,7 +42,7 @@ const whyChoose = [
     title: 'Atención por WhatsApp',
     description: 'Consultanos cuando quieras, respondemos al toque por el canal que más usás.',
     icon: MessageCircle,
-    customIcon: '/wwasa.svg',
+    customIcon: '/Whatsapp.svg',
     color: 'bg-emerald-50 text-emerald-600'
   }
 ]
@@ -92,47 +92,34 @@ const coverageSummary = [
   }
 ]
 
-const testimonials = [
-  {
-    name: 'Martín G.',
-    role: 'Propietario de auto',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-    content: 'Excelente atención. Me respondieron al toque por WhatsApp y en menos de una hora tenía mi póliza lista. Muy recomendable.'
-  },
-  {
-    name: 'Carolina S.',
-    role: 'Propietaria de moto',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face',
-    content: 'Buscaba un seguro para mi moto y me dieron varias opciones claras. Sin letra chica, todo transparente. Muy conformes.'
-  },
-  {
-    name: 'Roberto M.',
-    role: 'Propietario de auto',
-    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-    content: 'Tuve un siniestro y me acompañaron en todo el proceso. La respuesta fue rápida y el trámite muy simple. Gracias!'
-  }
-]
-
 const faqs = [
   {
-    q: '¿Cuánto tarda en estar lista mi póliza?',
-    a: 'Una vez que elegís tu cobertura y completás los datos, la póliza queda activa en el momento. Recibís toda la documentación por email y WhatsApp.'
+    q: '¿Cómo funciona el servicio de remolque?',
+    a: 'La cantidad de servicios, la fecha en la cual se habilitan y la distancia cubierta está sujeta a la compañía asegurada, previo a emitir el alta del seguro consultar por la cantidad de servicios mensuales y el kilometraje total. En el caso de que no hayas consultado el mismo, en el frente de póliza completa se detallan las cláusulas del servicio.'
   },
   {
-    q: '¿Qué documentación necesito para cotizar?',
-    a: 'Solo necesitamos los datos básicos de tu vehículo: marca, modelo, año, patente y uso. También tu DNI y datos de contacto.'
+    q: '¿Hasta qué año puedo asegurar mi vehículo?',
+    a: 'Actualmente en nuestra aseguradora no tenemos una restricción para asegurar distintos modelos, aunque según el año de fabricación del mismo va a influir en el tipo de cobertura que te podemos ofrecer.'
   },
   {
-    q: '¿Puedo pagar en cuotas?',
-    a: 'Sí, ofrecemos distintas opciones de pago: débito automático, tarjeta de crédito (en cuotas) o transferencia bancaria mensual.'
+    q: '¿Se puede asegurar online?',
+    a: 'Sí, se puede asegurar ya sea de manera online vía WhatsApp o acercándote a cualquiera de nuestras sucursales.'
   },
   {
-    q: '¿La cotización tiene algún costo?',
-    a: 'No, cotizar es 100% gratis y sin compromiso. Te presentamos las opciones y vos decidís si querés avanzar.'
+    q: '¿Hasta cuando tengo tiempo de pagar y cuando se vence mi seguro?',
+    a: 'El vencimiento de tu seguro se fija acorde al día en el que lo aseguraste, pero hay compañías que extienden el plazo del vencimiento para que no te quedes sin cobertura. El mismo lo podés consultar o constatar en los cupones de pago.'
   },
   {
-    q: '¿Atienden fuera de Dock Sud?',
-    a: 'Sí, atendemos clientes de toda la zona sur del Gran Buenos Aires y alrededores. Consultanos por tu localidad.'
+    q: '¿Qué documentos necesito para retirar un vehiculo secuestrado?',
+    a: 'Para retirarlo solamente necesitarías el frente de póliza y el comprobante de pago. Se recomienda asegurarlo por una responsabilidad civil para poder presentar la documentación.'
+  },
+  {
+    q: 'Si el vehiculo no esta a mi nombre, ¿lo puedo asegurar igual?',
+    a: 'Sí, puede estar a nombre de otra persona, pero en caso de que tengas un siniestro de cualquier tipo, la persona a quien van a indemnizar en caso de que corresponda va a ser al titular de la cédula verde.'
+  },
+  {
+    q: '¿Cual sería el comprobante de pago?',
+    a: 'En el caso de abonarlo por billeteras virtuales, los comprobantes te los habilitan desde tus movimientos de la cuenta. Si lo abonas por un rapipago/pagofacil, al momento de pagarlo te entregan un comprobante físico. En tal caso que no te haya llegado el comprobante, te podemos adjuntar uno dentro de las 48hs hábiles ya que primero se tiene que acreditar en el sistema. Según la compañía también dispone de una App para poder descargar los mismos.'
   }
 ]
 
@@ -185,7 +172,7 @@ const heroStatItemVariants: Variants = {
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const whatsappUrl = buildWhatsAppUrl(WHATSAPP_COTIZACION_MESSAGE)
-  const siniestroWhatsAppUrl = 'https://wa.me/5491128486938'
+  const avellanedaWhatsAppUrl = `https://wa.me/5491140830416?text=${encodeURIComponent(WHATSAPP_COTIZACION_MESSAGE)}`
 
   return (
     <div>
@@ -230,15 +217,13 @@ export default function HomePage() {
 
             <motion.div variants={heroItemVariants} className="flex flex-col gap-4 sm:flex-row sm:flex-nowrap sm:justify-center lg:justify-start">
               <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn-whatsapp shrink-0 whitespace-nowrap px-5 py-3 text-sm md:text-base">
-                <MessageCircle className="mr-2 h-5 w-5" /> Cotizar por WhatsApp
+                <WhatsAppIcon className="mr-2 h-5 w-5" tone="white" /> Cotizar por WhatsApp
               </a>
               <Link to="/Cotizacion" className="btn-outline shrink-0 whitespace-nowrap border-white/30 bg-white/10 px-5 py-3 text-sm text-white hover:bg-white/20 md:text-base">
                 <CircleGauge className="mr-2 h-5 w-5" /> Pedir Cotización
               </Link>
-              <a
-                href={siniestroWhatsAppUrl}
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                to="/Siniestros"
                 className="btn shrink-0 whitespace-nowrap border border-amber-200 bg-amber-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-amber-300 md:text-base"
               >
                 <img
@@ -248,7 +233,7 @@ export default function HomePage() {
                   className="mr-2 h-5 w-5 object-contain"
                 />
                 Denunciar siniestro
-              </a>
+              </Link>
             </motion.div>
 
             <motion.div
@@ -397,36 +382,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-white py-20 lg:py-28">
-        <div className="section-shell">
-          <div className="mb-16 text-center">
-            <p className="section-subtitle">Testimonios</p>
-            <h2 className="section-title mt-3 mb-4">Lo que dicen nuestros clientes</h2>
-            <p className="mx-auto max-w-2xl text-lg text-slate-600">La satisfacción de quienes nos eligen es nuestra mejor carta de presentación.</p>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {testimonials.map((item) => (
-              <article key={item.name} className="rounded-2xl bg-slate-50 p-8 transition hover:bg-slate-100">
-                <div className="mb-4 flex gap-1">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <Star key={`${item.name}-${index}`} className="h-5 w-5 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <p className="mb-6 leading-relaxed text-slate-700">"{item.content}"</p>
-                <div className="flex items-center gap-3">
-                  <img src={item.image} alt={item.name} className="h-12 w-12 rounded-full object-cover" />
-                  <div>
-                    <p className="font-semibold text-slate-900">{item.name}</p>
-                    <p className="text-sm text-slate-500">{item.role}</p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section className="bg-slate-50 py-20 lg:py-28">
         <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="mb-16 text-center">
@@ -469,8 +424,8 @@ export default function HomePage() {
                 Escribinos ahora y en minutos tenés tu cotización. Sin compromiso, 100% gratis.
               </p>
               <div className="flex flex-col justify-center gap-4 sm:flex-row">
-                <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn-whatsapp px-8 py-4 text-lg">
-                  <MessageCircle className="mr-2 h-5 w-5" /> Chatear por WhatsApp
+                <a href={avellanedaWhatsAppUrl} target="_blank" rel="noreferrer" className="btn-whatsapp px-8 py-4 text-lg">
+                  <WhatsAppIcon className="mr-2 h-5 w-5" tone="white" /> Chatear por WhatsApp
                 </a>
                 <Link to="/Cotizacion" className="btn-outline border-white/30 bg-white/10 px-8 py-4 text-lg text-white hover:bg-white/20">
                   Completar formulario <ArrowRight className="ml-2 h-5 w-5" />

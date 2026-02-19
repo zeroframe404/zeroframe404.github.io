@@ -9,6 +9,7 @@ export interface LeadPayload {
   marca_modelo?: string
   anio?: string
   localidad?: string
+  codigo_postal?: string
   uso?: string
   cobertura_deseada?: string
   motivo_contacto?: string

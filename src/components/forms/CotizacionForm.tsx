@@ -1,14 +1,21 @@
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { insertLead } from '../../lib/leads'
+import SimulatedSuccessBadge from './SimulatedSuccessBadge'
 
 interface CotizacionFormValues {
   tipo_vehiculo: string
   nombre: string
   telefono: string
   email: string
-  marca_modelo: string
+  codigo_postal: string
+  es_cero_km: '' | 'si' | 'no'
+  valor_ars: string
+  rodado: string
+  marca: string
+  modelo: string
+  patente: string
   anio: string
   localidad: string
   uso: string
@@ -22,7 +29,13 @@ const buildInitialValues = (insuranceType?: string): CotizacionFormValues => ({
   nombre: '',
   telefono: '',
   email: '',
-  marca_modelo: '',
+  codigo_postal: '',
+  es_cero_km: '',
+  valor_ars: '',
+  rodado: '',
+  marca: '',
+  modelo: '',
+  patente: '',
   anio: '',
   localidad: '',
   uso: '',
@@ -35,6 +48,10 @@ interface CotizacionFormProps {
   sourcePage?: string
   insuranceType?: string
 }
+
+const AVELLANEDA_WHATSAPP_NUMBER = '5491140830416'
+const SIMULATED_SUBMIT = true
+const SIMULATED_DELAY_MS = 500
 
 export default function CotizacionForm({
   sourcePage = 'Cotizacion',
@@ -52,14 +69,71 @@ export default function CotizacionForm({
     setValues((prev) => ({ ...prev, [field]: value }))
   }
 
-  const hasRequiredValues =
+  const normalizedInsuranceType = values.tipo_vehiculo
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  const isEcomovilityInsurance =
+    normalizedInsuranceType.includes('bicicleta') || normalizedInsuranceType.includes('monopatin')
+  const requiresRodado = normalizedInsuranceType.includes('bicicleta')
+  const isCelularInsurance = normalizedInsuranceType.includes('celular')
+  const isMotoInsurance = normalizedInsuranceType.includes('moto')
+  const isAutoInsurance = normalizedInsuranceType.includes('auto')
+  const isSupportedInsuranceType =
+    isEcomovilityInsurance || isMotoInsurance || isAutoInsurance || isCelularInsurance
+  const unsupportedInsuranceMessage = values.tipo_vehiculo
+    ? `Hola! Quiero cotizar el seguro de ${values.tipo_vehiculo}.`
+    : 'Hola! Quiero cotizar un seguro.'
+  const unsupportedInsuranceWhatsAppUrl = `https://wa.me/${AVELLANEDA_WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    unsupportedInsuranceMessage
+  )}`
+
+  const marcaPlaceholder = isCelularInsurance
+    ? 'Ej: Samsung'
+    : isEcomovilityInsurance
+    ? requiresRodado
+      ? 'Ej: Raleigh'
+      : 'Ej: Xiaomi'
+    : isMotoInsurance
+      ? 'Ej: Honda'
+      : 'Ej: Fiat'
+
+  const modeloPlaceholder = isCelularInsurance
+    ? 'Ej: Galaxy S23'
+    : isEcomovilityInsurance
+    ? requiresRodado
+      ? 'Ej: Mojave 2.0'
+      : 'Ej: Electric Scooter 4'
+    : isMotoInsurance
+      ? 'Ej: Wave 110'
+      : 'Ej: Cronos'
+
+  const hasCommonRequiredValues =
     values.tipo_vehiculo &&
     values.nombre.trim() &&
     values.telefono.trim() &&
-    values.marca_modelo.trim() &&
-    values.anio.trim() &&
+    values.marca.trim() &&
+    values.modelo.trim() &&
     values.localidad.trim() &&
+    values.codigo_postal.trim() &&
+    values.cobertura_deseada &&
     values.consentimiento
+
+  const hasEcomovilityRequiredValues =
+    values.valor_ars.trim() && (!requiresRodado || values.rodado.trim())
+
+  const hasCelularRequiredValues = values.anio.trim()
+
+  const hasVehicleRequiredValues = values.es_cero_km && values.anio.trim() && values.uso
+
+  const hasRequiredValues =
+    hasCommonRequiredValues &&
+    (isEcomovilityInsurance
+      ? hasEcomovilityRequiredValues
+      : isCelularInsurance
+        ? hasCelularRequiredValues
+        : hasVehicleRequiredValues)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -73,21 +147,43 @@ export default function CotizacionForm({
     setError(null)
 
     try {
-      await insertLead({
-        tipo_formulario: 'cotizacion',
+      const detalleSeguro = isEcomovilityInsurance
+        ? [
+            `Valor en ARS: ${values.valor_ars.trim()}`,
+            requiresRodado ? `Rodado: ${values.rodado.trim()}` : ''
+          ]
+        : isCelularInsurance
+          ? []
+          : [
+              `Es 0KM: ${values.es_cero_km === 'si' ? 'Si' : 'No'}`,
+              values.patente.trim() ? `Patente: ${values.patente.trim()}` : ''
+            ]
+
+      const mensajeConDetalle = [...detalleSeguro, values.mensaje.trim()].filter(Boolean).join('\n')
+
+      const payload = {
+        tipo_formulario: 'cotizacion' as const,
         tipo_vehiculo: values.tipo_vehiculo,
         nombre: values.nombre.trim(),
         telefono: values.telefono.trim(),
         email: values.email.trim() || undefined,
-        marca_modelo: values.marca_modelo.trim(),
-        anio: values.anio.trim(),
+        marca_modelo: `${values.marca.trim()} ${values.modelo.trim()}`.trim(),
+        anio: values.anio.trim() || undefined,
         localidad: values.localidad.trim(),
-        uso: values.uso,
+        codigo_postal: values.codigo_postal.trim(),
+        uso: isEcomovilityInsurance || isCelularInsurance ? undefined : values.uso,
         cobertura_deseada: values.cobertura_deseada,
-        mensaje: values.mensaje.trim() || undefined,
+        mensaje: mensajeConDetalle || undefined,
         consentimiento: values.consentimiento,
         source_page: sourcePage
-      })
+      }
+
+      if (SIMULATED_SUBMIT) {
+        await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY_MS))
+        await insertLead(payload).catch(() => null)
+      } else {
+        await insertLead(payload)
+      }
 
       setSubmitted(true)
       setValues(buildInitialValues(insuranceType))
@@ -101,16 +197,27 @@ export default function CotizacionForm({
   if (submitted) {
     return (
       <div className="py-12 text-center">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-          <CheckCircle2 className="h-10 w-10 text-green-600" />
-        </div>
-        <h3 className="mb-2 text-2xl font-bold text-slate-900">¡Listo!</h3>
+        <h3 className="mb-2 text-2xl font-bold text-slate-900">Envio simulado exitoso</h3>
         <p className="mb-3 text-slate-600">
           Recibimos tu solicitud. Te contactamos a la brevedad por WhatsApp o
-          teléfono.
+          telefono.
         </p>
-        <p className="text-sm text-slate-500">Respondemos en el día hábil.</p>
+        <p className="text-sm text-slate-500">Respondemos en el dia habil.</p>
+        <SimulatedSuccessBadge />
       </div>
+    )
+  }
+
+  if (!isSupportedInsuranceType) {
+    return (
+      <a
+        href={unsupportedInsuranceWhatsAppUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="btn-primary block w-full py-4 text-center text-lg"
+      >
+        Contactanos por whatsapp para cotizar este seguro
+      </a>
     )
   }
 
@@ -120,6 +227,10 @@ export default function CotizacionForm({
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo de seguro</p>
         <p className="text-sm font-semibold text-slate-900">{values.tipo_vehiculo || 'Sin seleccionar'}</p>
       </div>
+
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Datos personales
+      </h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-700">
@@ -158,29 +269,6 @@ export default function CotizacionForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-700">
-          Marca y modelo *
-          <input
-            className="input-base"
-            name="marca_modelo"
-            placeholder="Ej: Fiat Cronos"
-            value={values.marca_modelo}
-            onChange={(event) => updateField('marca_modelo', event.target.value)}
-          />
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          Año *
-          <input
-            className="input-base"
-            name="anio"
-            placeholder="Ej: 2022"
-            value={values.anio}
-            onChange={(event) => updateField('anio', event.target.value)}
-          />
-        </label>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm font-medium text-slate-700">
           Localidad *
           <input
             className="input-base"
@@ -190,29 +278,162 @@ export default function CotizacionForm({
             onChange={(event) => updateField('localidad', event.target.value)}
           />
         </label>
-
         <label className="text-sm font-medium text-slate-700">
-          Uso
-          <select
+          Codigo postal *
+          <input
             className="input-base"
-            value={values.uso}
-            onChange={(event) => updateField('uso', event.target.value)}
-          >
-            <option value="">Seleccioná</option>
-            <option value="particular">Particular</option>
-            <option value="trabajo">Trabajo / Comercial</option>
-          </select>
+            name="codigo_postal"
+            placeholder="Ej: 1870"
+            value={values.codigo_postal}
+            onChange={(event) => updateField('codigo_postal', event.target.value)}
+          />
         </label>
       </div>
 
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Datos de lo que vas a asegurar
+      </h3>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="text-sm font-medium text-slate-700">
+          Marca *
+          <input
+            className="input-base"
+            name="marca"
+            placeholder={marcaPlaceholder}
+            value={values.marca}
+            onChange={(event) => updateField('marca', event.target.value)}
+          />
+        </label>
+        <label className="text-sm font-medium text-slate-700">
+          Modelo *
+          <input
+            className="input-base"
+            name="modelo"
+            placeholder={modeloPlaceholder}
+            value={values.modelo}
+            onChange={(event) => updateField('modelo', event.target.value)}
+          />
+        </label>
+      </div>
+
+      {isEcomovilityInsurance ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-medium text-slate-700">
+            Valor en ARS *
+            <input
+              className="input-base"
+              name="valor_ars"
+              inputMode="numeric"
+              placeholder="Ej: 1500000"
+              value={values.valor_ars}
+              onChange={(event) => updateField('valor_ars', event.target.value)}
+            />
+          </label>
+
+          {requiresRodado && (
+            <label className="text-sm font-medium text-slate-700">
+              Rodado *
+              <input
+                className="input-base"
+                name="rodado"
+                placeholder="Ej: 29"
+                value={values.rodado}
+                onChange={(event) => updateField('rodado', event.target.value)}
+              />
+            </label>
+          )}
+        </div>
+      ) : isCelularInsurance ? (
+        <label className="text-sm font-medium text-slate-700">
+          Año de fabricacion *
+          <input
+            className="input-base"
+            name="anio"
+            placeholder="Ej: 2023"
+            value={values.anio}
+            onChange={(event) => updateField('anio', event.target.value)}
+          />
+        </label>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium text-slate-700">
+              Año *
+              <input
+                className="input-base"
+                name="anio"
+                placeholder="Ej: 2022"
+                value={values.anio}
+                onChange={(event) => updateField('anio', event.target.value)}
+              />
+            </label>
+            <label className="text-sm font-medium text-slate-700">
+              Uso *
+              <select
+                className="input-base"
+                value={values.uso}
+                onChange={(event) => updateField('uso', event.target.value)}
+              >
+                <option value="">Seleccioná</option>
+                <option value="particular">Particular</option>
+                <option value="trabajo">Trabajo / Comercial</option>
+              </select>
+            </label>
+          </div>
+
+          <label className="text-sm font-medium text-slate-700">
+            Patente (opcional)
+            <input
+              className="input-base"
+              name="patente"
+              placeholder="Ej: AA123BB"
+              value={values.patente}
+              onChange={(event) => updateField('patente', event.target.value)}
+            />
+          </label>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-slate-700">¿Es 0KM? *</p>
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <button
+                type="button"
+                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  values.es_cero_km === 'si'
+                    ? 'bg-brand-900 text-white shadow-sm'
+                    : 'text-slate-700 hover:bg-white'
+                }`}
+                onClick={() => updateField('es_cero_km', 'si')}
+                aria-pressed={values.es_cero_km === 'si'}
+              >
+                Si
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  values.es_cero_km === 'no'
+                    ? 'bg-brand-900 text-white shadow-sm'
+                    : 'text-slate-700 hover:bg-white'
+                }`}
+                onClick={() => updateField('es_cero_km', 'no')}
+                aria-pressed={values.es_cero_km === 'no'}
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       <label className="text-sm font-medium text-slate-700">
-        Cobertura deseada
+        Cobertura deseada *
         <select
           className="input-base"
           value={values.cobertura_deseada}
           onChange={(event) => updateField('cobertura_deseada', event.target.value)}
         >
           <option value="">Seleccioná una opción</option>
+          <option value="cotizar_todas_companias">Cotizar en todas las compañias</option>
           <option value="responsabilidad_civil">Responsabilidad Civil</option>
           <option value="terceros_completo">Terceros Completo</option>
           <option value="todo_riesgo">Todo Riesgo</option>

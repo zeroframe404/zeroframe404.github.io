@@ -1,5 +1,6 @@
 import { ArrowRight, ChevronDown, Handshake, MessageCircle, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import CotizacionForm from '../components/forms/CotizacionForm'
 import { WHATSAPP_COTIZACION_MESSAGE, buildWhatsAppUrl } from '../config/site'
 
@@ -52,7 +53,7 @@ const productCategories: ProductCategory[] = [
       {
         title: 'Bicicleta electrica',
         description: 'Cobertura para e-bikes con movilidad sustentable en ciudad.',
-        iconPath: '/seguros_tipo_svg/Bicicleta-svg.svg'
+        iconPath: '/seguros_tipo_svg/Bicicleta-electricasvg.svg'
       },
       {
         title: 'Monopatin electrico',
@@ -211,7 +212,7 @@ export default function CotizacionPage() {
         <div className="section-shell">
           <div className="mb-16 text-center">
             <p className="section-subtitle">Nuestros productos</p>
-            <h2 className="section-title mt-3 mb-4">Que queres asegurar?</h2>
+            <h2 className="section-title mt-3 mb-4">¿Que queres asegurar?</h2>
             <p className="mx-auto max-w-2xl text-lg text-slate-600">
               Selecciona una categoria en el menu y abajo se despliegan las opciones.
             </p>
@@ -334,7 +335,7 @@ export default function CotizacionPage() {
               rel="noreferrer"
               className="inline-flex items-center gap-2 font-semibold text-[#25D366] transition hover:text-[#20BA5C]"
             >
-              <MessageCircle className="h-5 w-5" /> Escribinos por WhatsApp
+              <WhatsAppIcon className="h-5 w-5" /> Escribinos por WhatsApp
             </a>
           </div>
         </div>

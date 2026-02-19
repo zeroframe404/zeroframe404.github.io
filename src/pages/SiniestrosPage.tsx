@@ -3,11 +3,14 @@
   ArrowRight,
   CheckCircle2,
   ClipboardCheck,
-  MessageCircle,
   PhoneCall,
   ShieldAlert
 } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import SiniestroReportForm from '../components/forms/SiniestroReportForm'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import {
   WHATSAPP_SINIESTRO_MESSAGE,
   buildWhatsAppUrl
@@ -40,18 +43,20 @@ const steps = [
   }
 ]
 
-const requiredData = [
-  'DNI del asegurado',
-  'Carnet de conducir',
-  'Cédula verde/azul del vehículo',
-  'Número de póliza',
-  'Fotos del siniestro',
-  'Datos de terceros involucrados (si aplica)',
-  'Denuncia policial (en caso de robo o accidente con lesiones)'
-]
-
 export default function SiniestrosPage() {
   const whatsappUrl = buildWhatsAppUrl(WHATSAPP_SINIESTRO_MESSAGE)
+  const [isReportFormOpen, setIsReportFormOpen] = useState(false)
+  const reportFormRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!isReportFormOpen) return
+
+    const timer = setTimeout(() => {
+      reportFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 160)
+
+    return () => clearTimeout(timer)
+  }, [isReportFormOpen])
 
   return (
     <div className="min-h-screen bg-white">
@@ -64,11 +69,46 @@ export default function SiniestrosPage() {
           <p className="mx-auto mb-8 max-w-2xl text-lg text-slate-300">
             Mantené la calma. Te explicamos qué hacer paso a paso y te acompañamos en todo el proceso.
           </p>
-          <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn-whatsapp px-8 py-4 text-lg">
-            <MessageCircle className="mr-2 h-5 w-5" /> Reportar siniestro por WhatsApp
-          </a>
+          <button
+            type="button"
+            onClick={() => setIsReportFormOpen((prev) => !prev)}
+            className="btn border border-amber-200 bg-amber-400 px-8 py-4 text-lg font-semibold text-slate-900 hover:bg-amber-300"
+          >
+            <img
+              src="/SiniestroVector.svg"
+              alt=""
+              aria-hidden="true"
+              className="mr-2 h-5 w-5 object-contain"
+            />
+            Reportar un siniestro
+          </button>
         </div>
       </section>
+
+      <AnimatePresence initial={false}>
+        {isReportFormOpen && (
+          <motion.section
+            ref={reportFormRef}
+            className="overflow-hidden bg-slate-50"
+            initial={{ opacity: 0, height: 0, y: -10 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -10 }}
+            transition={{ duration: 0.38, ease: 'easeOut' }}
+          >
+            <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
+                <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-bold text-slate-900">Formulario de reporte</h2>
+                  <p className="mt-2 text-slate-600">
+                    Completá los datos y te ayudamos a iniciar la gestión del siniestro.
+                  </p>
+                </div>
+                <SiniestroReportForm sourcePage="Siniestros" />
+              </div>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       <section className="py-16 lg:py-24">
         <div className="section-shell">
@@ -97,23 +137,6 @@ export default function SiniestrosPage() {
         </div>
       </section>
 
-      <section className="bg-slate-50 py-16">
-        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
-          <h2 className="mb-4 text-center text-2xl font-bold text-slate-900">Datos que te vamos a pedir</h2>
-          <p className="mb-8 text-center text-slate-600">Tené a mano esta información para agilizar la denuncia.</p>
-          <div className="rounded-2xl bg-white p-8 shadow-soft">
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {requiredData.map((item) => (
-                <li key={item} className="flex items-center gap-3 text-slate-700">
-                  <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-500" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
       <section className="bg-white py-16">
         <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
           <h2 className="mb-8 text-center text-2xl font-bold text-slate-900">Teléfonos de emergencia</h2>
@@ -134,17 +157,6 @@ export default function SiniestrosPage() {
         </div>
       </section>
 
-      <section className="bg-slate-50 py-12">
-        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-xl border border-slate-200 bg-white p-6">
-            <h3 className="mb-2 font-semibold text-slate-900">Información importante</h3>
-            <p className="text-sm leading-relaxed text-slate-600">
-              La denuncia formal del siniestro se rige por las condiciones de tu póliza y los procedimientos de la aseguradora correspondiente. Los plazos para denunciar varían según cada compañía (generalmente 72 horas). Contactanos lo antes posible para no perder la cobertura.
-            </p>
-          </div>
-        </div>
-      </section>
-
       <section className="bg-white py-16">
         <div className="mx-auto w-full max-w-3xl px-4 text-center sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-gradient-to-br from-brand-900 to-brand-800 p-8 lg:p-12">
@@ -157,7 +169,7 @@ export default function SiniestrosPage() {
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
               <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn bg-white font-semibold text-brand-900 hover:bg-slate-100">
-                <MessageCircle className="mr-2 h-5 w-5" /> Hablar con un asesor
+                <WhatsAppIcon className="mr-2 h-5 w-5" /> Hablar con un asesor
               </a>
               <Link to="/Cotizacion" className="btn-outline border-white/30 bg-white/10 text-white hover:bg-white/20">
                 Pedir asesoramiento gratis <ArrowRight className="ml-2 h-4 w-4" />
