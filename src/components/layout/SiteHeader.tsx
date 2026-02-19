@@ -3,6 +3,7 @@ import { Menu, Shield, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import {
+  LICENSE_NUMBER,
   NAV_ITEMS,
   SITE_NAME,
   SITE_SHORT_NAME
@@ -35,6 +36,9 @@ export default function SiteHeader() {
               </p>
               <p className="-mt-0.5 text-xs font-medium text-sky-700 sm:text-sm">
                 {SITE_SHORT_NAME}
+              </p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
+                {LICENSE_NUMBER}
               </p>
             </div>
           </Link>

@@ -1,4 +1,5 @@
 ﻿import { motion } from 'framer-motion'
+import type { Variants } from 'framer-motion'
 import {
   ArrowRight,
   Check,
@@ -135,9 +136,56 @@ const faqs = [
   }
 ]
 
+const heroContentVariants: Variants = {
+  hidden: { opacity: 0, x: -28 },
+  show: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.7,
+      ease: 'easeOut',
+      when: 'beforeChildren',
+      staggerChildren: 0.14
+    }
+  }
+}
+
+const heroItemVariants: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, ease: 'easeOut' }
+  }
+}
+
+const heroStatsVariants: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: 'easeOut',
+      staggerChildren: 0.1,
+      delayChildren: 0.1
+    }
+  }
+}
+
+const heroStatItemVariants: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: 'easeOut' }
+  }
+}
+
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const whatsappUrl = buildWhatsAppUrl(WHATSAPP_COTIZACION_MESSAGE)
+  const siniestroWhatsAppUrl = 'https://wa.me/5491128486938'
 
   return (
     <div>
@@ -154,44 +202,75 @@ export default function HomePage() {
           }}
         />
 
-        <div className="section-shell relative grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-          <div className="text-center lg:text-left">
-            <span className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-sky-300">
+        <div className="hero-shell relative grid items-center gap-12 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)] lg:gap-12">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={heroContentVariants}
+            className="text-center lg:text-left"
+          >
+            <motion.span
+              variants={heroItemVariants}
+              className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-sky-300"
+            >
               <ShieldCheck className="h-4 w-4" /> Protección para tu vehículo
-            </span>
-            <h1 className="mb-6 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl">
+            </motion.span>
+            <motion.h1
+              variants={heroItemVariants}
+              className="mb-6 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl"
+            >
               Asegurá tu <span className="bg-gradient-to-r from-sky-300 to-cyan-300 bg-clip-text text-transparent">Auto o Moto</span> en minutos
-            </h1>
-            <p className="mx-auto mb-8 max-w-xl text-lg text-slate-300 lg:mx-0 lg:text-xl">
+            </motion.h1>
+            <motion.p
+              variants={heroItemVariants}
+              className="mx-auto mb-8 max-w-xl text-lg text-slate-300 lg:mx-0 lg:text-xl"
+            >
               Cotización rápida, asesoramiento humano y cobertura a tu medida. Sin vueltas, sin letra chica.
-            </p>
+            </motion.p>
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center lg:justify-start">
-              <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn-whatsapp px-8 py-4 text-lg">
+            <motion.div variants={heroItemVariants} className="flex flex-col gap-4 sm:flex-row sm:flex-nowrap sm:justify-center lg:justify-start">
+              <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn-whatsapp shrink-0 whitespace-nowrap px-5 py-3 text-sm md:text-base">
                 <MessageCircle className="mr-2 h-5 w-5" /> Cotizar por WhatsApp
               </a>
-              <Link to="/Cotizacion" className="btn-outline border-white/30 bg-white/10 px-8 py-4 text-lg text-white hover:bg-white/20">
+              <Link to="/Cotizacion" className="btn-outline shrink-0 whitespace-nowrap border-white/30 bg-white/10 px-5 py-3 text-sm text-white hover:bg-white/20 md:text-base">
                 <CircleGauge className="mr-2 h-5 w-5" /> Pedir Cotización
               </Link>
-            </div>
+              <a
+                href={siniestroWhatsAppUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn shrink-0 whitespace-nowrap border border-amber-200 bg-amber-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-amber-300 md:text-base"
+              >
+                <img
+                  src="/SiniestroVector.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="mr-2 h-5 w-5 object-contain"
+                />
+                Denunciar siniestro
+              </a>
+            </motion.div>
 
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-6 border-t border-white/10 pt-10 lg:justify-start">
-              <div>
+            <motion.div
+              variants={heroStatsVariants}
+              className="mt-10 flex flex-wrap items-center justify-center gap-6 border-t border-white/10 pt-10 lg:justify-start"
+            >
+              <motion.div variants={heroStatItemVariants}>
                 <p className="text-3xl font-bold text-white">+500</p>
                 <p className="text-sm text-slate-400">Clientes protegidos</p>
-              </div>
+              </motion.div>
               <div className="hidden h-12 w-px bg-white/20 sm:block" />
-              <div>
+              <motion.div variants={heroStatItemVariants}>
                 <p className="text-3xl font-bold text-white">24hs</p>
                 <p className="text-sm text-slate-400">Respuesta garantizada</p>
-              </div>
+              </motion.div>
               <div className="hidden h-12 w-px bg-white/20 sm:block" />
-              <div>
+              <motion.div variants={heroStatItemVariants}>
                 <p className="text-3xl font-bold text-white">100%</p>
                 <p className="text-sm text-slate-400">Digital y humano</p>
-              </div>
-            </div>
-          </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, x: 50 }}
@@ -199,11 +278,34 @@ export default function HomePage() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="relative hidden lg:block"
           >
-            <img
-              src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=600&h=700&fit=crop"
-              alt="Auto protegido"
-              className="mx-auto w-full max-w-md rounded-2xl object-cover shadow-2xl shadow-black/30"
-            />
+            <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl shadow-black/30">
+              <div className="relative grid aspect-[4/5] grid-cols-2 bg-white">
+                <div className="relative overflow-hidden">
+                  <img
+                    src="/ATMDockSud.png"
+                    alt="Sucursal ATM Dock Sud"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
+                    <p className="text-xs font-semibold tracking-wide text-white">Dock Sud</p>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden">
+                  <img
+                    src="/ATMLanus.png"
+                    alt="Sucursal ATM Lanús"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
+                    <p className="text-xs font-semibold tracking-wide text-white">Lanús</p>
+                  </div>
+                </div>
+
+                <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/80" />
+                <div className="pointer-events-none absolute inset-y-[-6%] left-1/2 w-8 -translate-x-1/2 bg-white/25 blur-md" />
+              </div>
+            </div>
             <div className="absolute -bottom-6 -left-6 flex items-center gap-3 rounded-xl bg-white p-4 shadow-xl">
               <div className="rounded-lg bg-green-100 p-2">
                 <Check className="h-6 w-6 text-green-600" />
@@ -374,7 +476,10 @@ export default function HomePage() {
                   Completar formulario <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </div>
-              <p className="mt-8 text-sm text-slate-400">Respondemos en el día • Atención de Lun a Vie de 9 a 18hs</p>
+              <p className="mt-8 text-sm text-slate-400">
+                Respondemos en el dia • Atencion: Miercoles a Viernes 09:00 a 13:00 y 15:00 a
+                19:00 • Sabado 09:00 a 14:00 (Lunes, Martes y Domingo cerrado)
+              </p>
             </div>
           </div>
         </div>

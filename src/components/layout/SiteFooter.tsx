@@ -1,8 +1,8 @@
 ﻿import { Clock3, Mail, MapPin, Phone } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
-  CONTACT_EMAIL,
   CONTACT_PHONE,
+  LICENSE_NUMBER,
   NAV_ITEMS,
   SITE_NAME
 } from '../../config/site'
@@ -19,7 +19,12 @@ export default function SiteFooter() {
                 alt={`Logo ${SITE_NAME}`}
                 className="h-12 w-12 rounded-full border border-white/20 bg-white object-cover p-0.5"
               />
-              <h3 className="text-lg font-bold">{SITE_NAME}</h3>
+              <div>
+                <h3 className="text-lg font-bold">{SITE_NAME}</h3>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-300">
+                  {LICENSE_NUMBER}
+                </p>
+              </div>
             </div>
             <p className="text-sm leading-relaxed text-slate-300">
               Tu tranquilidad es nuestra prioridad. Asesoramiento personalizado en
@@ -53,8 +58,12 @@ export default function SiteFooter() {
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-sky-300" /> {CONTACT_PHONE}
               </li>
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-sky-300" /> {CONTACT_EMAIL}
+              <li className="flex items-start gap-2">
+                <Mail className="mt-0.5 h-4 w-4 text-sky-300" />
+                <div>
+                  <p>Avellaneda: segurosdocksud@gmail.com</p>
+                  <p>Lanus: Seguroslanus2@gmail.com</p>
+                </div>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 text-sky-300" /> Dock Sud,
@@ -69,9 +78,32 @@ export default function SiteFooter() {
             </h4>
             <div className="flex gap-2 text-sm text-slate-300">
               <Clock3 className="mt-0.5 h-4 w-4 text-sky-300" />
-              <div>
-                <p>Lunes a Viernes</p>
-                <p className="font-semibold text-white">9:00 a 18:00 hs</p>
+              <div className="space-y-1">
+                <p>
+                  <span className="font-semibold text-white">Lunes:</span> Cerrado
+                </p>
+                <p>
+                  <span className="font-semibold text-white">Martes:</span> Cerrado
+                </p>
+                <p>
+                  <span className="font-semibold text-white">Miercoles:</span> 09:00 a
+                  13:00 y de 15:00 a 19:00
+                </p>
+                <p>
+                  <span className="font-semibold text-white">Jueves:</span> 09:00 a
+                  13:00 y de 15:00 a 19:00
+                </p>
+                <p>
+                  <span className="font-semibold text-white">Viernes:</span> 09:00 a
+                  13:00 y de 15:00 a 19:00
+                </p>
+                <p>
+                  <span className="font-semibold text-white">Sabado:</span> 09:00 a
+                  14:00
+                </p>
+                <p>
+                  <span className="font-semibold text-white">Domingo:</span> Cerrado
+                </p>
               </div>
             </div>
           </div>

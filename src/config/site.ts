@@ -6,6 +6,7 @@ const sanitizeNumber = (value: string) => value.replace(/\D/g, '')
 
 export const SITE_NAME = 'Broker de seguros Daniel Martinez'
 export const SITE_SHORT_NAME = 'Daniel Martinez'
+export const LICENSE_NUMBER = 'Matrícula N°77284'
 export const WHATSAPP_NUMBER = sanitizeNumber(
   import.meta.env.VITE_WHATSAPP_NUMBER ?? fallbackWhatsApp
 )

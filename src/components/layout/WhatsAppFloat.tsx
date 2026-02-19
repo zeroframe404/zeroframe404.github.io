@@ -1,15 +1,15 @@
-﻿import { motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { MessageCircle } from 'lucide-react'
-import {
-  WHATSAPP_COTIZACION_MESSAGE,
-  buildWhatsAppUrl
-} from '../../config/site'
+import { WHATSAPP_COTIZACION_MESSAGE } from '../../config/site'
+
+const AVELLANEDA_WHATSAPP_NUMBER = '5491140830416'
+const avellanedaWhatsAppUrl = `https://wa.me/${AVELLANEDA_WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_COTIZACION_MESSAGE)}`
 
 export default function WhatsAppFloat() {
   return (
     <motion.a
       aria-label="Contactar por WhatsApp"
-      href={buildWhatsAppUrl(WHATSAPP_COTIZACION_MESSAGE)}
+      href={avellanedaWhatsAppUrl}
       target="_blank"
       rel="noreferrer"
       className="group fixed bottom-6 right-6 z-50 rounded-full bg-[#25D366] p-4 text-white shadow-lg transition hover:bg-[#20BA5C]"

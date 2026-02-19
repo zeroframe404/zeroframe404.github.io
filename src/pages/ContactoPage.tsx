@@ -1,37 +1,78 @@
-﻿import { Clock3, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
+import { Clock3, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import ContactoForm from '../components/forms/ContactoForm'
-import {
-  CONTACT_EMAIL,
-  CONTACT_PHONE,
-  WHATSAPP_COTIZACION_MESSAGE,
-  buildWhatsAppUrl
-} from '../config/site'
 
-const cards = [
+type BranchValue = {
+  branch: string
+  value: string
+}
+
+type ContactCard = {
+  title: string
+  description: string
+  icon: LucideIcon
+  highlight?: boolean
+  branchValues?: BranchValue[]
+  value?: string
+  link?: string
+}
+
+const branchContacts: BranchValue[] = [
+  {
+    branch: 'Avellaneda',
+    value: '+54 9 11 4083-0416'
+  },
+  {
+    branch: 'Lanus',
+    value: '+54 9 11 3694-2482'
+  }
+]
+
+const branchEmails: BranchValue[] = [
+  {
+    branch: 'Avellaneda',
+    value: 'segurosdocksud@gmail.com'
+  },
+  {
+    branch: 'Lanus',
+    value: 'Seguroslanus2@gmail.com'
+  }
+]
+
+const branchMaps = [
+  {
+    branch: 'Avellaneda',
+    src: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d205.14101989592174!2d-58.34735856971683!3d-34.64822918966067!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a333603e81a575%3A0xcb5e9949a7676583!2sbrokers%20de%20seguros%20avellaneda!5e0!3m2!1sen!2sar!4v1771499473143!5m2!1sen!2sar'
+  },
+  {
+    branch: 'Lanus',
+    src: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d204.9638994516236!2d-58.35957901396295!3d-34.71974597568886!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a332baa311bba1%3A0x6d7c4adeeb0c8f42!2sAtm%20Seguros!5e0!3m2!1sen!2sar!4v1771499511741!5m2!1sen!2sar'
+  }
+]
+
+const cards: ContactCard[] = [
   {
     title: 'WhatsApp',
-    value: CONTACT_PHONE,
+    branchValues: branchContacts,
     description: 'Escribinos cuando quieras',
-    link: buildWhatsAppUrl(WHATSAPP_COTIZACION_MESSAGE),
     highlight: true,
     icon: MessageCircle
   },
   {
-    title: 'Teléfono',
-    value: CONTACT_PHONE,
-    description: 'Lun a Vie de 9 a 18hs',
+    title: 'Telefono',
+    branchValues: branchContacts,
+    description: 'Mie a Vie 09-13 y 15-19, Sab 09-14',
     icon: Phone
   },
   {
     title: 'Email',
-    value: CONTACT_EMAIL,
-    description: 'Te respondemos en el día',
-    link: `mailto:${CONTACT_EMAIL}`,
+    branchValues: branchEmails,
+    description: 'Te respondemos en el dia',
     icon: Mail
   },
   {
-    title: 'Ubicación',
-    value: 'Dock Sud, Avellaneda',
+    title: 'Ubicacion',
+    value: 'Avellaneda y Lanus',
     description: 'Buenos Aires, Argentina',
     icon: MapPin
   }
@@ -44,7 +85,7 @@ export default function ContactoPage() {
         <div className="section-shell text-center">
           <h1 className="mb-4 text-3xl font-bold text-white lg:text-4xl">Contacto</h1>
           <p className="mx-auto max-w-2xl text-lg text-slate-300">
-            ¿Tenés alguna consulta? Escribinos y te respondemos a la brevedad.
+            ¿Tenes alguna consulta? Escribinos y te respondemos a la brevedad.
           </p>
         </div>
       </section>
@@ -62,11 +103,24 @@ export default function ContactoPage() {
                     key={card.title}
                     className={`rounded-xl bg-white p-6 ${card.highlight ? 'ring-2 ring-[#25D366] ring-offset-2' : ''}`}
                   >
-                    <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${card.highlight ? 'bg-[#25D366]/10 text-[#25D366]' : 'bg-blue-50 text-brand-900'}`}>
+                    <div
+                      className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${card.highlight ? 'bg-[#25D366]/10 text-[#25D366]' : 'bg-blue-50 text-brand-900'}`}
+                    >
                       <Icon className="h-6 w-6" />
                     </div>
                     <h3 className="mb-1 font-semibold text-slate-900">{card.title}</h3>
-                    {card.link ? (
+                    {card.branchValues ? (
+                      <div className="space-y-1">
+                        {card.branchValues.map((branchValue) => (
+                          <p key={`${card.title}-${branchValue.branch}`} className="text-sm">
+                            <span className="font-semibold text-slate-700">{branchValue.branch}:</span>{' '}
+                            <span className={`font-medium ${card.highlight ? 'text-[#25D366]' : 'text-brand-900'}`}>
+                              {branchValue.value}
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                    ) : card.link ? (
                       <a
                         href={card.link}
                         target={card.link.startsWith('http') ? '_blank' : undefined}
@@ -89,20 +143,46 @@ export default function ContactoPage() {
                 <div className="rounded-lg bg-amber-50 p-2 text-amber-600">
                   <Clock3 className="h-5 w-5" />
                 </div>
-                <h3 className="font-semibold text-slate-900">Horarios de atención</h3>
+                <h3 className="font-semibold text-slate-900">Horarios de atencion</h3>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Lunes a Viernes</span>
-                  <span className="font-medium text-slate-900">9:00 - 18:00 hs</span>
+                  <span className="text-slate-600">Lunes</span>
+                  <span className="text-slate-500">Cerrado</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Sábados y Domingos</span>
+                  <span className="text-slate-600">Martes</span>
+                  <span className="text-slate-500">Cerrado</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-600">Miercoles</span>
+                  <span className="text-right font-medium text-slate-900">
+                    09:00 a 13:00 y de 15:00 a 19:00
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-600">Jueves</span>
+                  <span className="text-right font-medium text-slate-900">
+                    09:00 a 13:00 y de 15:00 a 19:00
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-600">Viernes</span>
+                  <span className="text-right font-medium text-slate-900">
+                    09:00 a 13:00 y de 15:00 a 19:00
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-600">Sabado</span>
+                  <span className="font-medium text-slate-900">09:00 a 14:00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Domingo</span>
                   <span className="text-slate-500">Cerrado</span>
                 </div>
               </div>
               <p className="mt-4 text-xs text-slate-500">
-                * Por WhatsApp podés dejarnos tu mensaje fuera de horario y te respondemos al siguiente día hábil.
+                * Por WhatsApp podes dejarnos tu mensaje fuera de horario y te respondemos al siguiente dia habil.
               </p>
             </div>
           </div>
@@ -116,14 +196,35 @@ export default function ContactoPage() {
         </div>
       </section>
 
-      <section className="bg-white">
-        <div className="h-64 bg-slate-200 lg:h-80">
-          <div className="section-shell flex h-full items-center justify-center">
-            <div className="text-center">
-              <MapPin className="mx-auto mb-3 h-12 w-12 text-slate-400" />
-              <p className="text-slate-500">Dock Sud, Avellaneda, Buenos Aires</p>
-              <p className="mt-1 text-sm text-slate-400">(Mapa próximamente)</p>
-            </div>
+      <section className="bg-white py-16 lg:py-20">
+        <div className="section-shell">
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-bold text-slate-900">Nuestras sucursales</h2>
+            <p className="mt-2 text-slate-600">Avellaneda y Lanus, Buenos Aires</p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {branchMaps.map((branchMap) => (
+              <article key={branchMap.branch} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <MapPin className="h-4 w-4 text-brand-900" />
+                  {branchMap.branch}
+                </div>
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <iframe
+                    src={branchMap.src}
+                    title={`Mapa ${branchMap.branch}`}
+                    width="600"
+                    height="450"
+                    style={{ border: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="h-72 w-full lg:h-80"
+                  />
+                </div>
+              </article>
+            ))}
           </div>
         </div>
       </section>

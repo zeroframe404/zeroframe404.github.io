@@ -151,7 +151,9 @@ export default function SiniestrosPage() {
             <PhoneCall className="mx-auto mb-4 h-12 w-12 text-sky-300" />
             <h2 className="mb-4 text-2xl font-bold text-white">¿Necesitás ayuda ahora?</h2>
             <p className="mb-6 text-slate-300">
-              Estamos disponibles de Lunes a Viernes de 9 a 18hs. Escribinos y te respondemos a la brevedad.
+              Horario de atencion: Miercoles a Viernes de 09:00 a 13:00 y de 15:00 a 19:00, y
+              Sabado de 09:00 a 14:00. Lunes, Martes y Domingo cerrado. Escribinos y te
+              respondemos a la brevedad.
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
               <a href={whatsappUrl} target="_blank" rel="noreferrer" className="btn bg-white font-semibold text-brand-900 hover:bg-slate-100">
