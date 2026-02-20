@@ -267,7 +267,7 @@ export default function HomePage() {
               transition={canAnimate ? { duration: 0.7, delay: 0.2 } : undefined}
               className="relative hidden lg:block"
             >
-              <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl shadow-black/30">
+              <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl shadow-black/30 transition-transform duration-300 ease-out hover:scale-[1.02]">
                 <div className="relative grid aspect-[4/5] grid-cols-2 bg-white">
                   <div className="relative overflow-hidden">
                     <img
@@ -279,9 +279,6 @@ export default function HomePage() {
                       decoding="async"
                       className="h-full w-full object-cover"
                     />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
-                      <p className="text-xs font-semibold tracking-wide text-white">Dock Sud</p>
-                    </div>
                   </div>
 
                   <div className="relative overflow-hidden">
@@ -294,9 +291,6 @@ export default function HomePage() {
                       decoding="async"
                       className="h-full w-full object-cover"
                     />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
-                      <p className="text-xs font-semibold tracking-wide text-white">Lanús</p>
-                    </div>
                   </div>
 
                   <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/80" />

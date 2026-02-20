@@ -20,7 +20,7 @@ const values = [
 ]
 
 const stats = [
-  { value: '+500', label: 'Clientes activos' },
+  { value: '5000', label: 'Clientes activos' },
   { value: '+10', label: 'Años de experiencia' },
   { value: '24hs', label: 'Tiempo de respuesta' },
   { value: '100%', label: 'Compromiso' }

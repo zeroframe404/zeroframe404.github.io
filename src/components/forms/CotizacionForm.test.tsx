@@ -14,14 +14,11 @@ describe('CotizacionForm', () => {
     mockedInsertLead.mockReset()
   })
 
-  it('envia los datos a Supabase cuando el formulario es valido', async () => {
+  it('envia los datos de autos cuando el formulario es valido y permite nombre opcional', async () => {
     mockedInsertLead.mockResolvedValue(undefined)
 
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Autos" />)
 
-    fireEvent.change(screen.getByLabelText('Nombre y apellido *'), {
-      target: { value: 'Juan Perez' }
-    })
     fireEvent.change(screen.getByLabelText(/Tel.*fono \/ WhatsApp \*/i), {
       target: { value: '11 1111-1111' }
     })
@@ -62,7 +59,7 @@ describe('CotizacionForm', () => {
     expect(mockedInsertLead).toHaveBeenCalledWith(
       expect.objectContaining({
         tipo_formulario: 'cotizacion',
-        nombre: 'Juan Perez',
+        nombre: '',
         telefono: '11 1111-1111',
         tipo_vehiculo: 'Autos',
         marca_modelo: 'Fiat Cronos',
@@ -89,14 +86,11 @@ describe('CotizacionForm', () => {
     expect(mockedInsertLead).not.toHaveBeenCalled()
   })
 
-  it('pide campos de ecomovilidad cuando el seguro es bicicleta', async () => {
+  it('en ecomovilidad pide fecha de compra y no pide cobertura deseada', async () => {
     mockedInsertLead.mockResolvedValue(undefined)
 
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Bicicleta" />)
 
-    fireEvent.change(screen.getByLabelText('Nombre y apellido *'), {
-      target: { value: 'Ana Gomez' }
-    })
     fireEvent.change(screen.getByLabelText(/Tel.*fono \/ WhatsApp \*/i), {
       target: { value: '11 2222-3333' }
     })
@@ -115,17 +109,19 @@ describe('CotizacionForm', () => {
     fireEvent.change(screen.getByLabelText('Valor en ARS *'), {
       target: { value: '1500000' }
     })
+    fireEvent.change(screen.getByLabelText('Fecha de compra *'), {
+      target: { value: '2025-01-10' }
+    })
     fireEvent.change(screen.getByLabelText('Rodado *'), {
       target: { value: '29' }
-    })
-    fireEvent.change(screen.getByLabelText('Cobertura deseada *'), {
-      target: { value: 'responsabilidad_civil' }
     })
     fireEvent.click(
       screen.getByLabelText(
         /Acepto que me contacten por WhatsApp o llamada para recibir la cotizaci.*n\. \*/i
       )
     )
+
+    expect(screen.queryByLabelText('Cobertura deseada *')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Solicitar Cotizaci.*n/i }))
 
@@ -138,13 +134,13 @@ describe('CotizacionForm', () => {
         tipo_formulario: 'cotizacion',
         tipo_vehiculo: 'Bicicleta',
         marca_modelo: 'Raleigh Mojave 2.0',
-        cobertura_deseada: 'responsabilidad_civil',
-        mensaje: 'Valor en ARS: 1500000\nRodado: 29'
+        cobertura_deseada: undefined,
+        mensaje: 'Valor en ARS: 1500000\nRodado: 29\nFecha de compra: 2025-01-10'
       })
     )
   })
 
-  it('en celulares pide marca, modelo y año de fabricacion', async () => {
+  it('en celulares pide marca, modelo, año de fabricacion y cobertura', async () => {
     mockedInsertLead.mockResolvedValue(undefined)
 
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Celulares" />)
@@ -152,9 +148,6 @@ describe('CotizacionForm', () => {
     expect(screen.queryByLabelText('Uso *')).not.toBeInTheDocument()
     expect(screen.queryByText(/0KM/i)).not.toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Nombre y apellido *'), {
-      target: { value: 'Luis Diaz' }
-    })
     fireEvent.change(screen.getByLabelText(/Tel.*fono \/ WhatsApp \*/i), {
       target: { value: '11 3333-4444' }
     })
@@ -194,7 +187,60 @@ describe('CotizacionForm', () => {
         tipo_vehiculo: 'Celulares',
         marca_modelo: 'Samsung Galaxy S23',
         anio: '2023',
-        uso: undefined
+        uso: undefined,
+        cobertura_deseada: 'responsabilidad_civil'
+      })
+    )
+  })
+
+  it('para personas muestra campos especificos y envia el detalle en mensaje', async () => {
+    mockedInsertLead.mockResolvedValue(undefined)
+
+    render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Personas" />)
+
+    expect(screen.queryByLabelText('Localidad *')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Marca *')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Cobertura deseada *')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Tel.*fono \/ WhatsApp \*/i), {
+      target: { value: '11 5555-6666' }
+    })
+    fireEvent.change(screen.getByLabelText('Codigo postal *'), {
+      target: { value: '1870' }
+    })
+    fireEvent.change(screen.getByLabelText(/Cuantas personas se van a asegurar\? \*/i), {
+      target: { value: '3abc' }
+    })
+    fireEvent.change(screen.getByLabelText(/Que tipo de trabajo realizas\? \*/i), {
+      target: { value: 'Tecnico matriculado 2' }
+    })
+    fireEvent.change(screen.getByLabelText(/Cuanto tiempo vas a utilizar el seguro\? \*/i), {
+      target: { value: '8 meses' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Si$/i }))
+    fireEvent.click(
+      screen.getByLabelText(
+        /Acepto que me contacten por WhatsApp o llamada para recibir la cotizaci.*n\. \*/i
+      )
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Solicitar Cotizaci.*n/i }))
+
+    await waitFor(() => {
+      expect(mockedInsertLead).toHaveBeenCalledTimes(1)
+    })
+
+    expect(mockedInsertLead).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo_formulario: 'cotizacion',
+        tipo_vehiculo: 'Personas',
+        nombre: '',
+        telefono: '11 5555-6666',
+        codigo_postal: '1870',
+        marca_modelo: undefined,
+        cobertura_deseada: undefined,
+        mensaje:
+          'Cantidad de personas a asegurar: 3\nTipo de trabajo: Tecnico matriculado 2\nTiempo de uso del seguro: 8 meses\nClausulas de no repeticion: Si'
       })
     )
   })
@@ -202,7 +248,7 @@ describe('CotizacionForm', () => {
   it('para seguros no soportados muestra solo boton a WhatsApp de Avellaneda', () => {
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Vivienda" />)
 
-    expect(screen.queryByLabelText('Nombre y apellido *')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Nombre y apellido/i)).not.toBeInTheDocument()
 
     const button = screen.getByRole('link', {
       name: 'Contactanos por whatsapp para cotizar este seguro'

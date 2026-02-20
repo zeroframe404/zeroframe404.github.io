@@ -193,21 +193,10 @@ export default function SiteFooter() {
               <Clock3 className="mt-0.5 h-4 w-4 flex-none text-sky-300" />
               <div className="space-y-1">
                 <p>
-                  <span className="font-semibold text-white">Lunes:</span> Cerrado
-                </p>
-                <p>
-                  <span className="font-semibold text-white">Martes:</span> Cerrado
-                </p>
-                <p>
-                  <span className="font-semibold text-white">Miercoles:</span> 09:00 a
-                  13:00 y de 15:00 a 19:00
-                </p>
-                <p>
-                  <span className="font-semibold text-white">Jueves:</span> 09:00 a
-                  13:00 y de 15:00 a 19:00
-                </p>
-                <p>
-                  <span className="font-semibold text-white">Viernes:</span> 09:00 a
+                  <span className="font-semibold text-white">
+                    Lunes a Viernes:
+                  </span>{' '}
+                  09:00 a
                   13:00 y de 15:00 a 19:00
                 </p>
                 <p>

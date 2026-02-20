@@ -20,6 +20,8 @@ const SiniestroReportForm = lazy(
   () => import('../components/forms/SiniestroReportForm')
 )
 
+type SiniestroType = 'choque' | 'rotura' | 'robo'
+
 const steps = [
   {
     number: '01',
@@ -51,10 +53,17 @@ const steps = [
   }
 ]
 
+const siniestroTypes: Array<{ id: SiniestroType; label: string }> = [
+  { id: 'choque', label: 'Choque' },
+  { id: 'rotura', label: 'Rotura' },
+  { id: 'robo', label: 'Robo total/parcial' }
+]
+
 export default function SiniestrosPage() {
   const canAnimate = useCanAnimate()
   const whatsappUrl = buildWhatsAppUrl(WHATSAPP_SINIESTRO_MESSAGE)
   const [isReportFormOpen, setIsReportFormOpen] = useState(false)
+  const [selectedSiniestroType, setSelectedSiniestroType] = useState<SiniestroType>('choque')
   const reportFormRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
@@ -110,20 +119,41 @@ export default function SiniestrosPage() {
             <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
                 <div className="mb-6 text-center">
-                  <h2 className="text-2xl font-bold text-slate-900">Formulario de reporte</h2>
+                  <h2 className="text-2xl font-bold text-slate-900">Siniestros</h2>
                   <p className="mt-2 text-slate-600">
-                    Completá los datos y te ayudamos a iniciar la gestión del siniestro.
+                    Elegi el tipo de siniestro para iniciar la gestion.
                   </p>
                 </div>
-                <Suspense
-                  fallback={
-                    <p className="py-6 text-center text-sm text-slate-500">
-                      Cargando formulario...
-                    </p>
-                  }
-                >
-                  <SiniestroReportForm sourcePage="Siniestros" />
-                </Suspense>
+                <div className="mb-6 grid gap-2 sm:grid-cols-3">
+                  {siniestroTypes.map((type) => (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => setSelectedSiniestroType(type.id)}
+                      className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                        selectedSiniestroType === type.id
+                          ? 'border-brand-900 bg-brand-900 text-white'
+                          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+
+                {selectedSiniestroType === 'choque' ? (
+                  <Suspense
+                    fallback={
+                      <p className="py-6 text-center text-sm text-slate-500">
+                        Cargando formulario...
+                      </p>
+                    }
+                  >
+                    <SiniestroReportForm sourcePage="Siniestros" />
+                  </Suspense>
+                ) : (
+                  <div className="min-h-48 rounded-xl border border-dashed border-slate-300 bg-slate-50" />
+                )}
               </div>
             </div>
           </motion.section>

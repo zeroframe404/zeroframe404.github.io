@@ -20,7 +20,7 @@ const plans = [
     description:
       'Incluye Responsabilidad Civil más protección ante robo, incendio y daños por granizo. La opción más elegida.',
     features: [
-      'Todo lo de Responsabilidad Civil',
+      'Responsabilidad Civil',
       'Robo total y parcial',
       'Incendio total y parcial',
       'Daños por granizo',
@@ -35,7 +35,7 @@ const plans = [
     description:
       'La cobertura más completa. Cubre daños propios además de todo lo anterior, incluso si vos causaste el accidente.',
     features: [
-      'Todo lo de Terceros Completo',
+      'Terceros Completo',
       'Daños propios por accidente',
       'Daños por maniobras propias',
       'Franquicia (fija o variable)',

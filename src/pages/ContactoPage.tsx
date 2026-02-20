@@ -230,28 +230,8 @@ export default function ContactoPage() {
                 <h3 className="font-semibold text-slate-900">Horarios de atencion</h3>
               </div>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Lunes</span>
-                  <span className="text-slate-500">Cerrado</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Martes</span>
-                  <span className="text-slate-500">Cerrado</span>
-                </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-slate-600">Miercoles</span>
-                  <span className="text-right font-medium text-slate-900">
-                    09:00 a 13:00 y de 15:00 a 19:00
-                  </span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-slate-600">Jueves</span>
-                  <span className="text-right font-medium text-slate-900">
-                    09:00 a 13:00 y de 15:00 a 19:00
-                  </span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-slate-600">Viernes</span>
+                  <span className="text-slate-600">Lunes a Viernes</span>
                   <span className="text-right font-medium text-slate-900">
                     09:00 a 13:00 y de 15:00 a 19:00
                   </span>
