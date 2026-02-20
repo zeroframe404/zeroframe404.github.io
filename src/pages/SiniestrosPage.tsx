@@ -10,10 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import WhatsAppIcon from '../components/icons/WhatsAppIcon'
-import {
-  WHATSAPP_SINIESTRO_MESSAGE,
-  buildWhatsAppUrl
-} from '../config/site'
+import { WHATSAPP_SINIESTRO_MESSAGE } from '../config/site'
 import { useCanAnimate } from '../hooks/useCanAnimate'
 
 const SiniestroReportForm = lazy(
@@ -27,6 +24,7 @@ const RoboReportForm = lazy(
 )
 
 type SiniestroType = 'choque' | 'rotura' | 'robo'
+const SINIESTROS_WHATSAPP_NUMBER = '5491128486938'
 
 const steps = [
   {
@@ -67,7 +65,7 @@ const siniestroTypes: Array<{ id: SiniestroType; label: string }> = [
 
 export default function SiniestrosPage() {
   const canAnimate = useCanAnimate()
-  const whatsappUrl = buildWhatsAppUrl(WHATSAPP_SINIESTRO_MESSAGE)
+  const whatsappUrl = `https://wa.me/${SINIESTROS_WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_SINIESTRO_MESSAGE)}`
   const [isReportFormOpen, setIsReportFormOpen] = useState(false)
   const [selectedSiniestroType, setSelectedSiniestroType] = useState<SiniestroType>('choque')
   const reportFormRef = useRef<HTMLElement | null>(null)
