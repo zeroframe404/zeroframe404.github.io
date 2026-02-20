@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'sd-static-v1'
+const CACHE_VERSION = 'sd-static-v2'
 const CACHE_NAME = `${CACHE_VERSION}`
 const PRECACHE_URLS = ['/', '/index.html']
 const CACHEABLE_DESTINATIONS = new Set(['document', 'script', 'style', 'image', 'font'])

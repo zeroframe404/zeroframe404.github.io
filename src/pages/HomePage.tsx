@@ -43,7 +43,7 @@ const whyChoose = [
     title: 'Atención por WhatsApp',
     description: 'Consultanos cuando quieras, respondemos al toque por el canal que más usás.',
     icon: MessageCircle,
-    customIcon: '/Whatsapp.svg',
+    customIcon: '/redes_sociales/Whatsapp.svg',
     color: 'bg-emerald-50 text-emerald-600'
   }
 ]

@@ -1,5 +1,5 @@
 const COOKIE_NAME = 'sd_page_cache_meta'
-const CACHE_VERSION = '1'
+const CACHE_VERSION = '2'
 const STORAGE_PREFIX = `sd:page-cache:${CACHE_VERSION}:`
 const EXCLUDED_ROUTES = new Set(['/'])
 const MAX_CACHE_AGE_MS = 1000 * 60 * 60 * 24 * 14

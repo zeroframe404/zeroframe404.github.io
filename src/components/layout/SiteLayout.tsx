@@ -17,8 +17,9 @@ function RouteCacheFallback({ pathname }: { pathname: string }) {
 
   if (!cachedHtml) {
     return (
-      <div className="section-shell py-12 text-center text-sm text-slate-500">
-        Cargando...
+      <div className="page-route-fallback" role="status" aria-live="polite">
+        <div className="page-loader-spinner" aria-hidden="true" />
+        <p className="page-loader-label">cargando</p>
       </div>
     )
   }
@@ -36,6 +37,7 @@ export default function SiteLayout() {
   const location = useLocation()
   const enableHomeSnap = location.pathname === '/Home'
   const outletContainerRef = useRef<HTMLDivElement | null>(null)
+
   useAdaptiveSectionSnap(enableHomeSnap)
 
   useEffect(() => {

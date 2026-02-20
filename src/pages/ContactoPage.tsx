@@ -10,6 +10,11 @@ type BranchValue = {
   value: string
 }
 
+type BranchLink = {
+  branch: string
+  url: string
+}
+
 type ContactCard = {
   title: string
   description: string
@@ -43,16 +48,47 @@ const branchEmails: BranchValue[] = [
   }
 ]
 
+const socialCards: Array<{
+  title: string
+  icon: string
+  description: string
+  branchLinks: BranchLink[]
+}> = [
+  {
+    title: 'Instagram',
+    icon: '/redes_sociales/Instragram.svg',
+    description: 'Elegi la sucursal para abrir el perfil.',
+    branchLinks: [
+      { branch: 'Avellaneda', url: 'https://www.instagram.com/segurosdocksud' },
+      { branch: 'Lanus', url: 'https://www.instagram.com/seguroslanus_/' }
+    ]
+  },
+  {
+    title: 'Facebook',
+    icon: '/redes_sociales/Facebook.svg',
+    description: 'Elegi la sucursal para abrir la pagina.',
+    branchLinks: [
+      {
+        branch: 'Avellaneda',
+        url: 'https://www.facebook.com/brokersdesegurosavellanedagrup'
+      },
+      { branch: 'Lanus', url: 'https://www.facebook.com/seguros.lanus' }
+    ]
+  }
+]
+
 const branchMaps = [
   {
     branch: 'Avellaneda',
     src: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d205.14101989592174!2d-58.34735856971683!3d-34.64822918966067!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a333603e81a575%3A0xcb5e9949a7676583!2sbrokers%20de%20seguros%20avellaneda!5e0!3m2!1sen!2sar!4v1771499473143!5m2!1sen!2sar',
-    link: 'https://maps.google.com/?q=ATM+Seguros+Avellaneda'
+    link: 'https://maps.google.com/?q=ATM+Seguros+Avellaneda',
+    address: 'Manuel Estevez 1234, B1871 Dock Sud, Provincia de Buenos Aires'
   },
   {
     branch: 'Lanus',
     src: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d204.9638994516236!2d-58.35957901396295!3d-34.71974597568886!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a332baa311bba1%3A0x6d7c4adeeb0c8f42!2sAtm%20Seguros!5e0!3m2!1sen!2sar!4v1771499511741!5m2!1sen!2sar',
-    link: 'https://maps.google.com/?q=ATM+Seguros+Lanus'
+    link: 'https://maps.google.com/?q=ATM+Seguros+Lanus',
+    address: 'Centenario Uruguayo 1209, B1825 Lanús, Provincia de Buenos Aires'
   }
 ]
 
@@ -152,6 +188,38 @@ export default function ContactoPage() {
                   </article>
                 )
               })}
+            </div>
+
+            <div className="mb-12 grid gap-6 sm:grid-cols-2">
+              {socialCards.map((card) => (
+                <article key={card.title} className="rounded-xl bg-white p-6">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+                      <img
+                        src={card.icon}
+                        alt=""
+                        aria-hidden="true"
+                        className="h-6 w-6 object-contain"
+                      />
+                    </div>
+                    <h3 className="font-semibold text-slate-900">{card.title}</h3>
+                  </div>
+                  <p className="mb-4 text-sm text-slate-500">{card.description}</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {card.branchLinks.map((branchLink) => (
+                      <a
+                        key={`${card.title}-${branchLink.branch}`}
+                        href={branchLink.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-primary w-full justify-center text-sm"
+                      >
+                        {branchLink.branch}
+                      </a>
+                    ))}
+                  </div>
+                </article>
+              ))}
             </div>
 
             <div className="rounded-xl bg-white p-6">
@@ -271,6 +339,10 @@ export default function ContactoPage() {
                       </a>
                     </div>
                   )}
+
+                  <p className="mt-4 text-sm text-slate-700">
+                    <span className="font-semibold">{branchMap.branch}:</span> {branchMap.address}
+                  </p>
                 </article>
               )
             })}

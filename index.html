@@ -1,18 +1,18 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es-AR">
-    <head>
-    <meta charset="UTF-8" />
+  <head>
+    <meta charset="UTF-16" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <title>Broker de seguros Daniel Martinez</title>
     <meta
       name="description"
-      content="Cotizá y asegurá tu auto o moto de forma rápida y confiable. Coberturas claras y asesoramiento personalizado por WhatsApp."
+      content="Cotiz&aacute; y asegur&aacute; tu auto o moto de forma r&aacute;pida y confiable. Coberturas claras y asesoramiento personalizado por WhatsApp."
     />
     <meta property="og:title" content="Broker de seguros Daniel Martinez" />
     <meta
       property="og:description"
-      content="Cotizá y asegurá tu auto o moto de forma rápida y confiable. Coberturas claras y asesoramiento personalizado por WhatsApp."
+      content="Cotiz&aacute; y asegur&aacute; tu auto o moto de forma r&aacute;pida y confiable. Coberturas claras y asesoramiento personalizado por WhatsApp."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://segurosdocksud.com" />
@@ -20,10 +20,97 @@
     <meta name="twitter:title" content="Broker de seguros Daniel Martinez" />
     <meta
       name="twitter:description"
-      content="Cotizá y asegurá tu auto o moto de forma rápida y confiable. Coberturas claras y asesoramiento personalizado por WhatsApp."
+      content="Cotiz&aacute; y asegur&aacute; tu auto o moto de forma r&aacute;pida y confiable. Coberturas claras y asesoramiento personalizado por WhatsApp."
     />
+    <script>
+      ;(() => {
+        try {
+          const cachePrefix = 'sd:page-cache:2:'
+          const maxCacheAgeMs = 1000 * 60 * 60 * 24 * 14
+          const hash = window.location.hash || '#/Home'
+          let pathname = hash.startsWith('#') ? hash.slice(1) : hash
+
+          if (!pathname || pathname === '/') {
+            pathname = '/Home'
+          }
+
+          if (!pathname.startsWith('/')) {
+            pathname = `/${pathname}`
+          }
+
+          const raw = localStorage.getItem(`${cachePrefix}${pathname}`)
+          if (!raw) {
+            return
+          }
+
+          const parsed = JSON.parse(raw)
+          const hasFreshSnapshot =
+            parsed &&
+            typeof parsed.savedAt === 'number' &&
+            typeof parsed.html === 'string' &&
+            Date.now() - parsed.savedAt <= maxCacheAgeMs
+
+          if (hasFreshSnapshot) {
+            document.documentElement.setAttribute('data-has-route-cache', 'true')
+          }
+        } catch {
+          // Ignore storage read errors.
+        }
+      })()
+    </script>
+    <style>
+      html[data-has-route-cache='true'] #initial-loader {
+        display: none;
+      }
+
+      #initial-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        background: #f8fafc;
+        color: #0f172a;
+        transition: opacity 220ms ease;
+      }
+
+      #initial-loader.initial-loader--hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .initial-loader__spinner {
+        width: 52px;
+        height: 52px;
+        border: 4px solid #cbd5e1;
+        border-top-color: #0284c7;
+        border-radius: 999px;
+        animation: initial-loader-spin 0.8s linear infinite;
+      }
+
+      .initial-loader__label {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: lowercase;
+      }
+
+      @keyframes initial-loader-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="initial-loader" role="status" aria-live="polite">
+      <div class="initial-loader__spinner" aria-hidden="true"></div>
+      <p class="initial-loader__label">cargando</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
