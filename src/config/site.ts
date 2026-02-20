@@ -23,7 +23,7 @@ export const NAV_ITEMS = [
 ]
 
 export const WHATSAPP_COTIZACION_MESSAGE =
-  'Hola! Me interesa cotizar un seguro para mi vehículo.'
+  'Hola me interesa cotizar un seguro'
 
 export const WHATSAPP_SINIESTRO_MESSAGE =
   'Hola! Necesito reportar un siniestro.'

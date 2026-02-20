@@ -1,7 +1,7 @@
 import { ArrowRight, ChevronDown, Handshake, MessageCircle, ShieldCheck } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import WhatsAppIcon from '../components/icons/WhatsAppIcon'
-import { WHATSAPP_COTIZACION_MESSAGE, buildWhatsAppUrl } from '../config/site'
+import { WHATSAPP_COTIZACION_MESSAGE } from '../config/site'
 
 const CotizacionForm = lazy(() => import('../components/forms/CotizacionForm'))
 
@@ -121,9 +121,10 @@ const productCategories: ProductCategory[] = [
 ]
 
 const CATEGORY_MENU_TRANSITION_MS = 260
+const AVELLANEDA_WHATSAPP_NUMBER = '5491140830416'
 
 export default function CotizacionPage() {
-  const whatsappUrl = buildWhatsAppUrl(WHATSAPP_COTIZACION_MESSAGE)
+  const whatsappUrl = `https://wa.me/${AVELLANEDA_WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_COTIZACION_MESSAGE)}`
   const initialCategory = productCategories[0]?.category ?? ''
   const [selectedCategory, setSelectedCategory] = useState(initialCategory)
   const [visibleCategory, setVisibleCategory] = useState(initialCategory)
@@ -337,7 +338,7 @@ export default function CotizacionPage() {
           )}
 
           <div className="mt-8 text-center">
-            <p className="mb-3 text-slate-600">Preferis chatear directamente?</p>
+            <p className="mb-3 text-slate-600">¿Preferis chatear directamente?</p>
             <a
               href={whatsappUrl}
               target="_blank"

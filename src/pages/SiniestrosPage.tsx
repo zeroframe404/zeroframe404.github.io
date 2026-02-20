@@ -19,6 +19,12 @@ import { useCanAnimate } from '../hooks/useCanAnimate'
 const SiniestroReportForm = lazy(
   () => import('../components/forms/SiniestroReportForm')
 )
+const RoturaReportForm = lazy(
+  () => import('../components/forms/RoturaReportForm')
+)
+const RoboReportForm = lazy(
+  () => import('../components/forms/RoboReportForm')
+)
 
 type SiniestroType = 'choque' | 'rotura' | 'robo'
 
@@ -141,7 +147,7 @@ export default function SiniestrosPage() {
                   ))}
                 </div>
 
-                {selectedSiniestroType === 'choque' ? (
+                {selectedSiniestroType === 'choque' && (
                   <Suspense
                     fallback={
                       <p className="py-6 text-center text-sm text-slate-500">
@@ -151,8 +157,30 @@ export default function SiniestrosPage() {
                   >
                     <SiniestroReportForm sourcePage="Siniestros" />
                   </Suspense>
-                ) : (
-                  <div className="min-h-48 rounded-xl border border-dashed border-slate-300 bg-slate-50" />
+                )}
+
+                {selectedSiniestroType === 'rotura' && (
+                  <Suspense
+                    fallback={
+                      <p className="py-6 text-center text-sm text-slate-500">
+                        Cargando formulario...
+                      </p>
+                    }
+                  >
+                    <RoturaReportForm sourcePage="Siniestros" />
+                  </Suspense>
+                )}
+
+                {selectedSiniestroType === 'robo' && (
+                  <Suspense
+                    fallback={
+                      <p className="py-6 text-center text-sm text-slate-500">
+                        Cargando formulario...
+                      </p>
+                    }
+                  >
+                    <RoboReportForm sourcePage="Siniestros" />
+                  </Suspense>
                 )}
               </div>
             </div>
