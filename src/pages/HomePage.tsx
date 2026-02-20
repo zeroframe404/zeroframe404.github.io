@@ -244,7 +244,7 @@ export default function HomePage() {
               className="mt-10 flex flex-wrap items-center justify-center gap-6 border-t border-white/10 pt-10 lg:justify-start"
             >
               <motion.div variants={canAnimate ? heroStatItemVariants : undefined}>
-                <p className="text-3xl font-bold text-white">+500</p>
+                <p className="text-3xl font-bold text-white">+5000</p>
                 <p className="text-sm text-slate-400">Clientes protegidos</p>
               </motion.div>
               <div className="hidden h-12 w-px bg-white/20 sm:block" />
