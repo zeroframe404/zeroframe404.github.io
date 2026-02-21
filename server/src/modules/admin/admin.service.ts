@@ -1,7 +1,12 @@
 import { randomBytes, createHash } from 'node:crypto'
 import { env } from '../../config/env.js'
 import { prisma } from '../db/prisma.js'
-import type { AdminDashboardResponse, AdminLeadRow } from './admin.types.js'
+import { downloadSiniestroFileByKey } from '../storage/s3Client.js'
+import type {
+  AdminDashboardResponse,
+  AdminLeadRow,
+  AdminSiniestroArchivo
+} from './admin.types.js'
 import { normalizeLimit } from '../../utils/validation/common.js'
 
 export const ADMIN_COOKIE_NAME = 'admin_session'
@@ -158,3 +163,80 @@ export async function getAdminDashboard(rawLimit: unknown): Promise<AdminDashboa
   }
 }
 
+export async function getSiniestroArchivos(
+  siniestroId: string
+): Promise<AdminSiniestroArchivo[]> {
+  const files = await prisma.siniestroArchivo.findMany({
+    where: { siniestroId },
+    orderBy: { createdAt: 'desc' }
+  })
+
+  return files.map((file) => ({
+    id: file.id,
+    created_at: file.createdAt.toISOString(),
+    label: file.label,
+    original_name: file.originalName,
+    mime_type: file.mimeType,
+    size_bytes: file.sizeBytes,
+    is_image: file.mimeType.toLowerCase().startsWith('image/')
+  }))
+}
+
+export async function getSiniestroArchivoContent(input: {
+  siniestroId: string
+  fileId: string
+}) {
+  const file = await prisma.siniestroArchivo.findFirst({
+    where: {
+      id: input.fileId,
+      siniestroId: input.siniestroId
+    }
+  })
+
+  if (!file) {
+    return null
+  }
+
+  let content: Buffer | null = null
+
+  if (file.fileData && file.fileData.length > 0) {
+    content = Buffer.from(file.fileData)
+  } else if (file.publicUrl) {
+    const response = await fetch(file.publicUrl)
+    if (!response.ok) {
+      throw new Error(`No pudimos leer el archivo remoto (${response.status}).`)
+    }
+
+    const fileBuffer = await response.arrayBuffer()
+    content = Buffer.from(fileBuffer)
+  } else if (file.s3Key) {
+    content = await downloadSiniestroFileByKey(file.s3Key)
+  }
+
+  if (!content) {
+    throw new Error('No encontramos datos para el archivo solicitado.')
+  }
+
+  return {
+    id: file.id,
+    originalName: file.originalName || 'archivo',
+    mimeType: file.mimeType || 'application/octet-stream',
+    content
+  }
+}
+
+export async function deleteCotizacionById(cotizacionId: string) {
+  const result = await prisma.cotizacion.deleteMany({
+    where: { id: cotizacionId }
+  })
+
+  return result.count > 0
+}
+
+export async function deleteSiniestroById(siniestroId: string) {
+  const result = await prisma.siniestro.deleteMany({
+    where: { id: siniestroId }
+  })
+
+  return result.count > 0
+}

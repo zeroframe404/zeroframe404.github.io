@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  deleteAdminCotizacion,
+  deleteAdminSiniestro,
+  fetchAdminSiniestroArchivoBlob,
+  fetchAdminSiniestroArchivos,
   fetchAdminDashboard,
   loginAdmin,
   logoutAdmin
@@ -31,6 +35,20 @@ const sampleDashboardResponse: AdminDashboardResponse = {
     cotizaciones: 1,
     siniestros: 0
   }
+}
+
+const sampleSiniestroFilesPayload = {
+  archivos: [
+    {
+      id: 'file-1',
+      created_at: '2026-02-21T12:00:00.000Z',
+      label: 'Danos del vehiculo',
+      original_name: 'foto-frente.jpg',
+      mime_type: 'image/jpeg',
+      size_bytes: 153600,
+      is_image: true
+    }
+  ]
 }
 
 function makeJsonResponse(status: number, payload: unknown) {
@@ -96,5 +114,80 @@ describe('adminApi', () => {
       credentials: 'include'
     }))
   })
-})
 
+  it('fetchAdminSiniestroArchivos returns parsed files payload', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(makeJsonResponse(200, sampleSiniestroFilesPayload))
+
+    await expect(fetchAdminSiniestroArchivos('siniestro-1')).resolves.toEqual(
+      sampleSiniestroFilesPayload.archivos
+    )
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/siniestros/siniestro-1/archivos',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include'
+      })
+    )
+  })
+
+  it('fetchAdminSiniestroArchivoBlob returns blob for download', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('binary-content', {
+        status: 200,
+        headers: {
+          'content-type': 'application/octet-stream'
+        }
+      })
+    )
+
+    const blob = await fetchAdminSiniestroArchivoBlob({
+      siniestroId: 'siniestro-1',
+      fileId: 'file-1',
+      download: true
+    })
+
+    expect(blob).toBeInstanceOf(Blob)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/siniestros/siniestro-1/archivos/file-1?download=1',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include'
+      })
+    )
+  })
+
+  it('deleteAdminCotizacion calls DELETE endpoint', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(makeJsonResponse(200, { ok: true }))
+
+    await expect(deleteAdminCotizacion('cotizacion-1')).resolves.toBeUndefined()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/cotizaciones/cotizacion-1',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include'
+      })
+    )
+  })
+
+  it('deleteAdminSiniestro calls DELETE endpoint', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(makeJsonResponse(200, { ok: true }))
+
+    await expect(deleteAdminSiniestro('siniestro-1')).resolves.toBeUndefined()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/siniestros/siniestro-1',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include'
+      })
+    )
+  })
+})

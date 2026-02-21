@@ -24,3 +24,13 @@ export interface AdminDashboardResponse {
     siniestros: number
   }
 }
+
+export interface AdminSiniestroArchivo {
+  id: string
+  created_at: string
+  label: string
+  original_name: string
+  mime_type: string
+  size_bytes: number
+  is_image: boolean
+}

@@ -1,4 +1,8 @@
-import type { AdminDashboardResponse, AdminLeadRow } from '../types/admin'
+import type {
+  AdminDashboardResponse,
+  AdminLeadRow,
+  AdminSiniestroArchivo
+} from '../types/admin'
 import { apiRequest, readApiError } from './apiClient'
 
 const DEFAULT_LIMIT = 500
@@ -51,6 +55,30 @@ function isAdminDashboardResponse(value: unknown): value is AdminDashboardRespon
   )
 }
 
+function isAdminSiniestroArchivo(value: unknown): value is AdminSiniestroArchivo {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.created_at === 'string' &&
+    typeof value.label === 'string' &&
+    typeof value.original_name === 'string' &&
+    typeof value.mime_type === 'string' &&
+    typeof value.size_bytes === 'number' &&
+    typeof value.is_image === 'boolean'
+  )
+}
+
+function isAdminSiniestroArchivosPayload(value: unknown): value is { archivos: AdminSiniestroArchivo[] } {
+  if (!isRecord(value) || !Array.isArray(value.archivos)) {
+    return false
+  }
+
+  return value.archivos.every(isAdminSiniestroArchivo)
+}
+
 function normalizeLimit(limit: number) {
   if (!Number.isFinite(limit) || limit <= 0) {
     return DEFAULT_LIMIT
@@ -69,7 +97,7 @@ export async function loginAdmin(password: string) {
   })
 
   if (!response.ok) {
-    const message = await readApiError(response, 'No se pudo iniciar sesion.')
+    const message = await readApiError(response, 'No se pudo iniciar sesión.')
     throw new Error(message)
   }
 }
@@ -80,7 +108,7 @@ export async function logoutAdmin() {
   })
 
   if (!response.ok) {
-    const message = await readApiError(response, 'No se pudo cerrar sesion.')
+    const message = await readApiError(response, 'No se pudo cerrar sesión.')
     throw new Error(message)
   }
 }
@@ -105,9 +133,100 @@ export async function fetchAdminDashboard(limit = DEFAULT_LIMIT) {
 
   const data = (await response.json()) as unknown
   if (!isAdminDashboardResponse(data)) {
-    throw new Error('La respuesta del backend no es valida.')
+    throw new Error('La respuesta del backend no es válida.')
   }
 
   return data
 }
 
+export async function fetchAdminSiniestroArchivos(siniestroId: string) {
+  const encodedSiniestroId = encodeURIComponent(siniestroId)
+  const response = await apiRequest(`/api/admin/siniestros/${encodedSiniestroId}/archivos`, {
+    method: 'GET'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(
+      response,
+      'No pudimos obtener los archivos del siniestro.'
+    )
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminSiniestroArchivosPayload(payload)) {
+    throw new Error('La respuesta de archivos no es válida.')
+  }
+
+  return payload.archivos
+}
+
+export async function fetchAdminSiniestroArchivoBlob(input: {
+  siniestroId: string
+  fileId: string
+  download?: boolean
+}) {
+  const encodedSiniestroId = encodeURIComponent(input.siniestroId)
+  const encodedFileId = encodeURIComponent(input.fileId)
+  const downloadSuffix = input.download ? '?download=1' : ''
+  const response = await apiRequest(
+    `/api/admin/siniestros/${encodedSiniestroId}/archivos/${encodedFileId}${downloadSuffix}`,
+    { method: 'GET' }
+  )
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(
+      response,
+      'No pudimos leer el archivo solicitado.'
+    )
+    throw new Error(message)
+  }
+
+  return response.blob()
+}
+
+export async function deleteAdminCotizacion(cotizacionId: string) {
+  const encodedCotizacionId = encodeURIComponent(cotizacionId)
+  const response = await apiRequest(`/api/admin/cotizaciones/${encodedCotizacionId}`, {
+    method: 'DELETE'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(
+      response,
+      'No pudimos eliminar la cotización.'
+    )
+    throw new Error(message)
+  }
+}
+
+export async function deleteAdminSiniestro(siniestroId: string) {
+  const encodedSiniestroId = encodeURIComponent(siniestroId)
+  const response = await apiRequest(`/api/admin/siniestros/${encodedSiniestroId}`, {
+    method: 'DELETE'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(
+      response,
+      'No pudimos eliminar el siniestro.'
+    )
+    throw new Error(message)
+  }
+}

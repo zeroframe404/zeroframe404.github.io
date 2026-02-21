@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { env } from '../../config/env.js'
 
 type S3RuntimeConfig = {
@@ -75,4 +75,21 @@ export async function uploadSiniestroFile(params: {
     key: params.key,
     publicUrl: buildPublicUrl(params.key)
   }
+}
+
+export async function downloadSiniestroFileByKey(key: string) {
+  const config = resolveS3Config()
+  const response = await getS3Client(config).send(
+    new GetObjectCommand({
+      Bucket: config.bucket,
+      Key: key
+    })
+  )
+
+  if (!response.Body) {
+    throw new Error('S3 file has no body.')
+  }
+
+  const fileBytes = await response.Body.transformToByteArray()
+  return Buffer.from(fileBytes)
 }
