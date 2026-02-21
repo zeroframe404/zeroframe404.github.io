@@ -60,8 +60,6 @@ interface CotizacionFormProps {
 }
 
 const AVELLANEDA_WHATSAPP_NUMBER = '5491140830416'
-const SIMULATED_SUBMIT = true
-const SIMULATED_DELAY_MS = 500
 
 export default function CotizacionForm({
   sourcePage = 'Cotizacion',
@@ -212,12 +210,7 @@ export default function CotizacionForm({
         source_page: sourcePage
       }
 
-      if (SIMULATED_SUBMIT) {
-        await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY_MS))
-        await insertLead(payload).catch(() => null)
-      } else {
-        await insertLead(payload)
-      }
+      await insertLead(payload)
 
       setSubmitted(true)
       setValues(buildInitialValues(insuranceType))
@@ -231,7 +224,7 @@ export default function CotizacionForm({
   if (submitted) {
     return (
       <div className="py-12 text-center">
-        <h3 className="mb-2 text-2xl font-bold text-slate-900">Envio simulado exitoso</h3>
+        <h3 className="mb-2 text-2xl font-bold text-slate-900">Envio exitoso</h3>
         <p className="mb-3 text-slate-600">
           Recibimos tu solicitud. Te contactamos a la brevedad por WhatsApp o telefono.
         </p>

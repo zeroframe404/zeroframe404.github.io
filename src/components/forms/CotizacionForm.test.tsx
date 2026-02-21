@@ -74,7 +74,7 @@ describe('CotizacionForm', () => {
       })
     )
 
-    expect(await screen.findByText('Envio simulado exitoso')).toBeInTheDocument()
+    expect(await screen.findByText('Envio exitoso')).toBeInTheDocument()
   })
 
   it('muestra error cuando faltan datos obligatorios', async () => {

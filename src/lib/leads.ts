@@ -1,23 +1,29 @@
-﻿import type { LeadPayload } from '../types/lead'
-import { getSupabaseClient } from './supabaseClient'
+import type { LeadPayload } from '../types/lead'
+import { apiRequest, readApiError } from './apiClient'
+
+function resolveLeadEndpoint(payload: LeadPayload) {
+  if (payload.tipo_formulario === 'cotizacion') {
+    return '/api/forms/cotizaciones'
+  }
+
+  return '/api/forms/contacto'
+}
 
 export async function insertLead(payload: LeadPayload) {
-  const supabase = getSupabaseClient()
+  const response = await apiRequest(resolveLeadEndpoint(payload), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
 
-  if (!supabase) {
-    throw new Error(
-      'Faltan variables de entorno de Supabase. Configurá VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.'
+  if (!response.ok) {
+    const message = await readApiError(
+      response,
+      'No pudimos enviar el formulario.'
     )
-  }
-
-  const { error } = await supabase.from('leads').insert([
-    {
-      ...payload,
-      created_at: new Date().toISOString()
-    }
-  ])
-
-  if (error) {
-    throw new Error(error.message)
+    throw new Error(message)
   }
 }
+

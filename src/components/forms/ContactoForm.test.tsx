@@ -50,10 +50,10 @@ describe('ContactoForm', () => {
       })
     )
 
-    expect(await screen.findByText('Envio simulado exitoso')).toBeInTheDocument()
+    expect(await screen.findByText('Envio exitoso')).toBeInTheDocument()
   })
 
-  it('en modo simulado muestra exito aunque la API falle', async () => {
+  it('muestra error cuando la API falla', async () => {
     mockedInsertLead.mockRejectedValue(new Error('network'))
 
     render(<ContactoForm sourcePage="Contacto" />)
@@ -67,6 +67,8 @@ describe('ContactoForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Enviar mensaje' }))
 
-    expect(await screen.findByText('Envio simulado exitoso')).toBeInTheDocument()
+    expect(
+      await screen.findByText(/No pudimos enviar tu mensaje\./i)
+    ).toBeInTheDocument()
   })
 })

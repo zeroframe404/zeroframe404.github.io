@@ -22,9 +22,6 @@ interface ContactoFormProps {
   sourcePage?: string
 }
 
-const SIMULATED_SUBMIT = true
-const SIMULATED_DELAY_MS = 500
-
 export default function ContactoForm({ sourcePage = 'Contacto' }: ContactoFormProps) {
   const [values, setValues] = useState<ContactoFormValues>(initialValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,13 +57,7 @@ export default function ContactoForm({ sourcePage = 'Contacto' }: ContactoFormPr
     }
 
     try {
-      if (SIMULATED_SUBMIT) {
-        await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY_MS))
-        await insertLead(payload).catch(() => null)
-      } else {
-        await insertLead(payload)
-      }
-
+      await insertLead(payload)
       setSubmitted(true)
       setValues(initialValues)
     } catch {
@@ -79,7 +70,7 @@ export default function ContactoForm({ sourcePage = 'Contacto' }: ContactoFormPr
   if (submitted) {
     return (
       <div className="py-8 text-center">
-        <h3 className="mb-2 text-xl font-bold text-slate-900">Envio simulado exitoso</h3>
+        <h3 className="mb-2 text-xl font-bold text-slate-900">Envio exitoso</h3>
         <p className="text-slate-600">Te respondemos a la brevedad.</p>
         <SimulatedSuccessBadge />
       </div>

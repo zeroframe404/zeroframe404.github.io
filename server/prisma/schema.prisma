@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SiniestroTipo {
+  choque
+  rotura
+  robo
+}
+
+model Cotizacion {
+  id               String   @id @default(uuid()) @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  nombre           String
+  telefono         String
+  email            String?
+  tipoVehiculo     String?  @map("tipo_vehiculo")
+  marcaModelo      String?  @map("marca_modelo")
+  anio             String?
+  localidad        String?
+  codigoPostal     String?  @map("codigo_postal")
+  uso              String?
+  coberturaDeseada String?  @map("cobertura_deseada")
+  mensaje          String?
+  consentimiento   Boolean
+  sourcePage       String   @map("source_page")
+
+  @@index([createdAt(sort: Desc)])
+  @@map("cotizaciones")
+}
+
+model Contacto {
+  id             String   @id @default(uuid()) @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  nombre         String
+  telefono       String
+  motivoContacto String?  @map("motivo_contacto")
+  mensaje        String?
+  consentimiento Boolean
+  sourcePage     String   @map("source_page")
+
+  @@index([createdAt(sort: Desc)])
+  @@index([motivoContacto])
+  @@map("contactos")
+}
+
+model Siniestro {
+  id             String            @id @default(uuid()) @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at")
+  tipo           SiniestroTipo
+  nombreReporte  String            @map("nombre_reporte")
+  telefono       String
+  motivoContacto String            @default("siniestro") @map("motivo_contacto")
+  detalleTexto   String?           @map("detalle_texto")
+  payloadJson    Json?             @map("payload_json")
+  sourcePage     String            @map("source_page")
+  archivos       SiniestroArchivo[]
+
+  @@index([createdAt(sort: Desc)])
+  @@index([tipo])
+  @@index([motivoContacto])
+  @@map("siniestros")
+}
+
+model SiniestroArchivo {
+  id           String    @id @default(uuid()) @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  siniestroId  String    @map("siniestro_id") @db.Uuid
+  label        String
+  originalName String    @map("original_name")
+  mimeType     String    @map("mime_type")
+  sizeBytes    Int       @map("size_bytes")
+  storageMode  String    @default("db") @map("storage_mode")
+  s3Key        String?   @map("s3_key")
+  publicUrl    String?   @map("public_url")
+  fileData     Bytes?    @map("file_data")
+  fileSha256   String?   @map("file_sha256")
+  siniestro    Siniestro @relation(fields: [siniestroId], references: [id], onDelete: Cascade)
+
+  @@index([siniestroId])
+  @@index([storageMode])
+  @@map("siniestro_archivos")
+}
+
+model AdminSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime  @map("expires_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  revokedAt DateTime? @map("revoked_at")
+
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}

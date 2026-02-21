@@ -1,9 +1,8 @@
 import { Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { insertLead } from '../../lib/leads'
-import { getSupabaseClient } from '../../lib/supabaseClient'
 import SimulatedSuccessBadge from './SimulatedSuccessBadge'
+import { submitSiniestroReport } from '../../lib/siniestros'
 
 type BinaryAnswer = 'si' | 'no' | ''
 
@@ -45,9 +44,6 @@ const DOCUMENT_ACCEPT = '.png,.jpg,.jpeg,.pdf'
 const IMAGE_ACCEPT = '.png,.jpg,.jpeg'
 const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'application/pdf'])
 const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg'])
-const SINIESTROS_BUCKET = import.meta.env.VITE_SUPABASE_SINIESTROS_BUCKET ?? 'siniestros'
-const SIMULATED_SUBMIT = true
-const SIMULATED_DELAY_MS = 700
 
 type UploadLabelAndFiles = {
   label: string
@@ -73,17 +69,6 @@ function formatDateForDisplay(dateValue: string) {
   const [year, month, day] = dateValue.split('-')
   if (!year || !month || !day) return dateValue
   return `${day}/${month}/${year.slice(-2)}`
-}
-
-function sanitizeFileName(fileName: string) {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
-}
-
-function sanitizePathSegment(input: string) {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 }
 
 function getSingleFile(fileList: FileList | null) {
@@ -263,49 +248,7 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
     return null
   }
 
-  const uploadFiles = async (reportId: string, fileGroups: UploadLabelAndFiles[]) => {
-    const supabase = getSupabaseClient()
-
-    if (!supabase) {
-      throw new Error(
-        'Faltan variables de entorno de Supabase. Configurá VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.'
-      )
-    }
-
-    const uploaded: Array<{ label: string; path: string; publicUrl: string }> = []
-
-    for (const group of fileGroups) {
-      const groupSlug = sanitizePathSegment(group.label)
-
-      for (const [index, file] of group.files.entries()) {
-        const safeFileName = sanitizeFileName(file.name)
-        const path = `${reportId}/${groupSlug}-${index + 1}-${Date.now()}-${safeFileName}`
-
-        const { error: uploadError } = await supabase.storage
-          .from(SINIESTROS_BUCKET)
-          .upload(path, file, { upsert: false })
-
-        if (uploadError) {
-          throw new Error(uploadError.message)
-        }
-
-        const { data } = supabase.storage.from(SINIESTROS_BUCKET).getPublicUrl(path)
-
-        uploaded.push({
-          label: group.label,
-          path,
-          publicUrl: data.publicUrl
-        })
-      }
-    }
-
-    return uploaded
-  }
-
-  const buildMessage = (
-    reportId: string,
-    uploadedFiles: Array<{ label: string; path: string; publicUrl: string }>
-  ) => {
+  const buildMessage = (reportId: string) => {
     const lines = [
       `Reporte ID: ${reportId}`,
       `1) Relato paso a paso: ${values.relato.trim()}`,
@@ -323,13 +266,6 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
       `7) Impacto y danos: ${values.impactoDanos.trim()}`,
       `Croquis adjunto: ${croquisFile ? 'Si' : 'No'}`
     ]
-
-    if (uploadedFiles.length > 0) {
-      lines.push('Archivos adjuntos:')
-      uploadedFiles.forEach((item) => {
-        lines.push(`- ${item.label}: ${item.publicUrl || item.path}`)
-      })
-    }
 
     return lines.join('\n')
   }
@@ -362,34 +298,18 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
     ].filter((group) => group.files.length > 0)
 
     try {
-      if (SIMULATED_SUBMIT) {
-        await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY_MS))
-
-        const simulatedMessage = buildMessage(reportId, [])
-
-        await insertLead({
-          tipo_formulario: 'contacto',
-          nombre: 'Reporte de siniestro',
-          telefono: 'No informado',
-          motivo_contacto: 'siniestro',
-          mensaje: simulatedMessage,
-          consentimiento: true,
-          source_page: sourcePage
-        }).catch(() => null)
-      } else {
-        const uploadedFiles = await uploadFiles(reportId, fileGroups)
-        const message = buildMessage(reportId, uploadedFiles)
-
-        await insertLead({
-          tipo_formulario: 'contacto',
-          nombre: 'Reporte de siniestro',
-          telefono: 'No informado',
-          motivo_contacto: 'siniestro',
-          mensaje: message,
-          consentimiento: true,
-          source_page: sourcePage
-        })
-      }
+      await submitSiniestroReport({
+        tipo: 'choque',
+        sourcePage,
+        nombreReporte: 'Reporte de siniestro',
+        telefono: 'No informado',
+        detalleTexto: buildMessage(reportId),
+        payloadJson: {
+          reportId,
+          ...values
+        },
+        fileGroups
+      })
 
       setSubmitted(true)
       resetForm()
@@ -405,7 +325,7 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
   if (submitted) {
     return (
       <div className="py-6 text-center">
-        <h3 className="mb-2 text-xl font-bold text-slate-900">Envio simulado exitoso</h3>
+        <h3 className="mb-2 text-xl font-bold text-slate-900">Envio exitoso</h3>
         <p className="text-slate-600">Recibimos tu siniestro y te contactamos a la brevedad.</p>
         <SimulatedSuccessBadge />
       </div>
@@ -679,3 +599,5 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
     </form>
   )
 }
+
+
