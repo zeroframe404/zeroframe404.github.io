@@ -37,9 +37,30 @@ window.requestAnimationFrame(() => {
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    const swUrl = `${import.meta.env.BASE_URL}sw.js`
-    navigator.serviceWorker.register(swUrl).catch(() => {
-      // Ignore registration errors to avoid affecting app usage.
-    })
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => {
+        for (const registration of registrations) {
+          void registration.unregister()
+        }
+      })
+      .catch(() => {
+        // Ignore cleanup errors to avoid affecting app usage.
+      })
+
+    if ('caches' in window) {
+      void caches
+        .keys()
+        .then((keys) =>
+          Promise.all(
+            keys
+              .filter((key) => key.startsWith('sd-static-'))
+              .map((key) => caches.delete(key))
+          )
+        )
+        .catch(() => {
+          // Ignore cache cleanup errors.
+        })
+    }
   })
 }
