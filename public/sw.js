@@ -1,7 +1,29 @@
-const CACHE_VERSION = 'sd-static-v2'
+const CACHE_VERSION = 'sd-static-v3'
 const CACHE_NAME = `${CACHE_VERSION}`
 const PRECACHE_URLS = ['/', '/index.html']
 const CACHEABLE_DESTINATIONS = new Set(['document', 'script', 'style', 'image', 'font'])
+
+function isCacheableResponse(request, response) {
+  if (!response || !response.ok) {
+    return false
+  }
+
+  const contentType = (response.headers.get('content-type') || '').toLowerCase()
+
+  if (request.destination === 'style') {
+    return contentType.includes('text/css')
+  }
+
+  if (request.destination === 'script') {
+    return contentType.includes('javascript')
+  }
+
+  if (request.destination === 'document') {
+    return contentType.includes('text/html')
+  }
+
+  return true
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -29,7 +51,7 @@ async function staleWhileRevalidate(request) {
 
   const networkPromise = fetch(request)
     .then((response) => {
-      if (response && response.ok) {
+      if (isCacheableResponse(request, response)) {
         cache.put(request, response.clone())
       }
       return response
@@ -49,7 +71,7 @@ async function networkFirst(request) {
 
   try {
     const response = await fetch(request)
-    if (response && response.ok) {
+    if (isCacheableResponse(request, response)) {
       cache.put(request, response.clone())
     }
     return response
