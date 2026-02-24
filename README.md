@@ -61,6 +61,34 @@ npm run dev:server
 
 El frontend usa proxy `/api` -> `VITE_DEV_API_TARGET`.
 
+## Deploy con Docker Compose (Hostinger VPS)
+
+Archivos usados:
+
+- `docker-compose.yml`
+- `Dockerfile.backend`
+- `Dockerfile.frontend`
+- `docker/nginx.conf`
+
+Pasos:
+
+1. Crear `.env` desde `.env.example` y completar secretos:
+   - `ADMIN_DASHBOARD_PASSWORD`
+   - `COOKIE_SECRET`
+   - `POSTGRES_PASSWORD`
+2. Subir el repo al servidor.
+3. Levantar contenedores:
+```bash
+docker compose up -d --build
+```
+4. Abrir solo puertos 80/443 en el firewall del VPS.
+
+Notas:
+
+- El frontend se sirve por Nginx en un solo dominio y proxyea `/api` al backend Node.
+- El backend ejecuta `prisma db push` al iniciar para asegurar esquema en PostgreSQL.
+- Si usas HTTPS, mantener `NODE_ENV=production` y revisar `ADMIN_COOKIE_SAME_SITE` según tu flujo.
+
 ## Deploy en Render (frontend + backend separados)
 
 Backend (`Web Service`):
