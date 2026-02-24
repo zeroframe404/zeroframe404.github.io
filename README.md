@@ -68,7 +68,10 @@ Archivos usados:
 - `docker-compose.yml`
 - `Dockerfile.backend`
 - `Dockerfile.frontend`
-- `docker/nginx.conf`
+- `docker/frontend.nginx.conf`
+- `nginx/conf.d/default.conf`
+- `certbot/www`
+- `certbot/letsencrypt`
 
 Pasos:
 
@@ -76,16 +79,34 @@ Pasos:
    - `ADMIN_DASHBOARD_PASSWORD`
    - `COOKIE_SECRET`
    - `POSTGRES_PASSWORD`
-2. Subir el repo al servidor.
-3. Levantar contenedores:
+2. Ajustar dominios en `nginx/conf.d/default.conf`.
+3. Subir el repo al servidor.
+4. Levantar contenedores:
 ```bash
 docker compose up -d --build
 ```
-4. Abrir solo puertos 80/443 en el firewall del VPS.
+5. Abrir puertos 80/443 en el firewall del VPS.
+
+SSL con Let's Encrypt (opcional, recomendado):
+
+1. Emitir certificado (reemplazar email y dominio si corresponde):
+```bash
+docker compose --profile ssl run --rm certbot certonly --webroot -w /var/www/certbot -d dmartinezseguros.com -d www.dmartinezseguros.com --email admin@dmartinezseguros.com --agree-tos --no-eff-email
+```
+2. Activar config SSL:
+```bash
+cp nginx/conf.d/default-ssl.conf.example nginx/conf.d/default.conf
+docker compose restart nginx
+```
+3. Renovación manual:
+```bash
+docker compose --profile ssl run --rm certbot renew
+docker compose restart nginx
+```
 
 Notas:
 
-- El frontend se sirve por Nginx en un solo dominio y proxyea `/api` al backend Node.
+- Nginx público enruta `/` al frontend y `/api` al backend.
 - El backend ejecuta `prisma db push` al iniciar para asegurar esquema en PostgreSQL.
 - Si usas HTTPS, mantener `NODE_ENV=production` y revisar `ADMIN_COOKIE_SAME_SITE` según tu flujo.
 
