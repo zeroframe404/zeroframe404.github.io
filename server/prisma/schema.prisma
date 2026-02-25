@@ -13,6 +13,12 @@ enum SiniestroTipo {
   robo
 }
 
+enum AdminLogAutoClearUnit {
+  day
+  week
+  month
+}
+
 model Cotizacion {
   id               String   @id @default(uuid()) @db.Uuid
   createdAt        DateTime @default(now()) @map("created_at")
@@ -153,4 +159,15 @@ model AdminActivity {
   @@index([actorUserId])
   @@index([action])
   @@map("admin_activities")
+}
+
+model AdminLogSettings {
+  id                 Int                  @id @default(1)
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+  autoClearValue     Int                  @default(1) @map("auto_clear_value")
+  autoClearUnit      AdminLogAutoClearUnit @default(month) @map("auto_clear_unit")
+  lastClearedAt      DateTime             @default(now()) @map("last_cleared_at")
+
+  @@map("admin_log_settings")
 }

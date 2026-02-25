@@ -1,7 +1,9 @@
-import type {
+﻿import type {
   AdminAccessControlResponse,
   AdminActivitiesResponse,
   AdminDashboardResponse,
+  AdminLogAutoClearUnit,
+  AdminLogSettingsRow,
   AdminPermissionMap,
   AdminRoleRow,
   AdminSiniestroArchivo,
@@ -118,6 +120,7 @@ function isAdminRoleRow(value: unknown): value is AdminRoleRow {
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
     typeof value.created_at === 'string' &&
+    typeof value.updated_at === 'string' &&
     isAdminPermissionMap(value.permissions)
   )
 }
@@ -132,7 +135,8 @@ function isAdminUserRow(value: unknown): value is AdminUserRow {
     typeof value.is_active === 'boolean' &&
     isNullableString(value.role_id) &&
     isNullableString(value.role_name) &&
-    typeof value.created_at === 'string'
+    typeof value.created_at === 'string' &&
+    typeof value.updated_at === 'string'
   )
 }
 
@@ -144,8 +148,28 @@ function isAdminAccessControlResponse(value: unknown): value is AdminAccessContr
   return value.roles.every(isAdminRoleRow) && value.users.every(isAdminUserRow)
 }
 
+function isAdminLogAutoClearUnit(value: unknown): value is AdminLogAutoClearUnit {
+  return value === 'day' || value === 'week' || value === 'month'
+}
+
+function isAdminLogSettingsRow(value: unknown): value is AdminLogSettingsRow {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  return (
+    typeof value.auto_clear_value === 'number' &&
+    isAdminLogAutoClearUnit(value.auto_clear_unit) &&
+    typeof value.last_cleared_at === 'string'
+  )
+}
+
 function isAdminActivitiesResponse(value: unknown): value is AdminActivitiesResponse {
   if (!isRecord(value) || !Array.isArray(value.activities)) {
+    return false
+  }
+
+  if (!isAdminLogSettingsRow(value.settings)) {
     return false
   }
 
@@ -181,9 +205,21 @@ function isAdminUserPayload(value: unknown): value is { user: AdminUserRow } {
   return isRecord(value) && isAdminUserRow(value.user)
 }
 
+function isAdminSettingsPayload(value: unknown): value is { settings: AdminLogSettingsRow } {
+  return isRecord(value) && isAdminLogSettingsRow(value.settings)
+}
+
 function normalizeLimit(limit: number) {
   if (!Number.isFinite(limit) || limit <= 0) {
     return DEFAULT_LIMIT
+  }
+
+  return Math.min(Math.trunc(limit), MAX_LIMIT)
+}
+
+function normalizeActivityLimit(limit: number) {
+  if (!Number.isFinite(limit) || limit <= 0) {
+    return DEFAULT_ACTIVITY_LIMIT
   }
 
   return Math.min(Math.trunc(limit), MAX_LIMIT)
@@ -418,6 +454,56 @@ export async function createAdminRole(input: {
   return payload.role
 }
 
+export async function updateAdminRole(input: {
+  roleId: string
+  name: string
+  permissions: AdminPermissionMap
+}) {
+  const encodedRoleId = encodeURIComponent(input.roleId)
+  const response = await apiRequest(`/api/admin/roles/${encodedRoleId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: input.name,
+      permissions: input.permissions
+    })
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos editar el rol.')
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminRolePayload(payload)) {
+    throw new Error('La respuesta de edicion de rol no es valida.')
+  }
+
+  return payload.role
+}
+
+export async function deleteAdminRole(roleId: string) {
+  const encodedRoleId = encodeURIComponent(roleId)
+  const response = await apiRequest(`/api/admin/roles/${encodedRoleId}`, {
+    method: 'DELETE'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos eliminar el rol.')
+    throw new Error(message)
+  }
+}
+
 export async function createAdminUser(input: {
   username: string
   password: string
@@ -452,6 +538,73 @@ export async function createAdminUser(input: {
   return payload.user
 }
 
+export async function updateAdminUser(input: {
+  userId: string
+  username?: string
+  password?: string
+  roleId?: string | null
+  isActive?: boolean
+}) {
+  const encodedUserId = encodeURIComponent(input.userId)
+  const body: Record<string, unknown> = {}
+
+  if (input.username !== undefined) {
+    body.username = input.username
+  }
+
+  if (input.password !== undefined) {
+    body.password = input.password
+  }
+
+  if (input.roleId !== undefined) {
+    body.role_id = input.roleId
+  }
+
+  if (input.isActive !== undefined) {
+    body.is_active = input.isActive
+  }
+
+  const response = await apiRequest(`/api/admin/users/${encodedUserId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos editar el usuario.')
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminUserPayload(payload)) {
+    throw new Error('La respuesta de edicion de usuario no es valida.')
+  }
+
+  return payload.user
+}
+
+export async function deleteAdminUser(userId: string) {
+  const encodedUserId = encodeURIComponent(userId)
+  const response = await apiRequest(`/api/admin/users/${encodedUserId}`, {
+    method: 'DELETE'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos eliminar el usuario.')
+    throw new Error(message)
+  }
+}
+
 export async function assignAdminUserRole(input: {
   userId: string
   roleId: string | null
@@ -484,9 +637,84 @@ export async function assignAdminUserRole(input: {
   return payload.user
 }
 
-export async function fetchAdminActivities(limit = DEFAULT_ACTIVITY_LIMIT) {
-  const normalizedLimit = normalizeLimit(limit)
-  const response = await apiRequest(`/api/admin/activities?limit=${normalizedLimit}`, {
+export async function updateSuperAdminCredentials(input: {
+  username?: string
+  password?: string
+}) {
+  const response = await apiRequest('/api/admin/super-admin/credentials', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username: input.username,
+      password: input.password
+    })
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(
+      response,
+      'No pudimos actualizar las credenciales del admin principal.'
+    )
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminUserPayload(payload)) {
+    throw new Error('La respuesta de actualizacion de credenciales no es valida.')
+  }
+
+  return payload.user
+}
+
+export async function fetchAdminActivities(input?: {
+  limit?: number
+  actorUserId?: string
+  actorUsername?: string
+  action?: string
+  section?: string
+  search?: string
+  dateFrom?: string
+  dateTo?: string
+}) {
+  const normalizedLimit = normalizeActivityLimit(input?.limit ?? DEFAULT_ACTIVITY_LIMIT)
+  const query = new URLSearchParams()
+  query.set('limit', String(normalizedLimit))
+
+  if (input?.actorUserId) {
+    query.set('actor_user_id', input.actorUserId)
+  }
+
+  if (input?.actorUsername) {
+    query.set('actor_username', input.actorUsername)
+  }
+
+  if (input?.action) {
+    query.set('action', input.action)
+  }
+
+  if (input?.section) {
+    query.set('section', input.section)
+  }
+
+  if (input?.search) {
+    query.set('search', input.search)
+  }
+
+  if (input?.dateFrom) {
+    query.set('date_from', input.dateFrom)
+  }
+
+  if (input?.dateTo) {
+    query.set('date_to', input.dateTo)
+  }
+
+  const response = await apiRequest(`/api/admin/activities?${query.toString()}`, {
     method: 'GET'
   })
 
@@ -504,5 +732,84 @@ export async function fetchAdminActivities(limit = DEFAULT_ACTIVITY_LIMIT) {
     throw new Error('La respuesta de actividades no es valida.')
   }
 
-  return payload.activities
+  return payload
+}
+
+export async function fetchAdminLogSettings() {
+  const response = await apiRequest('/api/admin/activities/settings', {
+    method: 'GET'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos obtener configuracion del log.')
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminSettingsPayload(payload)) {
+    throw new Error('La respuesta de configuracion del log no es valida.')
+  }
+
+  return payload.settings
+}
+
+export async function updateAdminLogSettings(input: {
+  autoClearValue: number
+  autoClearUnit: AdminLogAutoClearUnit
+}) {
+  const response = await apiRequest('/api/admin/activities/settings', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      auto_clear_value: input.autoClearValue,
+      auto_clear_unit: input.autoClearUnit
+    })
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(
+      response,
+      'No pudimos actualizar la configuracion del log.'
+    )
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminSettingsPayload(payload)) {
+    throw new Error('La respuesta de configuracion del log no es valida.')
+  }
+
+  return payload.settings
+}
+
+export async function clearAdminActivities() {
+  const response = await apiRequest('/api/admin/activities', {
+    method: 'DELETE'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos borrar el log.')
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isRecord(payload) || typeof payload.ok !== 'boolean' || !isAdminLogSettingsRow(payload.settings)) {
+    throw new Error('La respuesta de borrado de log no es valida.')
+  }
+
+  return payload.settings
 }

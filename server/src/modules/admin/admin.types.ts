@@ -23,6 +23,8 @@ export interface AdminPermissionMap {
   can_delete_siniestros: boolean
 }
 
+export type AdminLogAutoClearUnit = 'day' | 'week' | 'month'
+
 export interface AdminSessionUser {
   id: string
   username: string
@@ -59,6 +61,7 @@ export interface AdminRoleRow {
   name: string
   permissions: AdminPermissionMap
   created_at: string
+  updated_at: string
 }
 
 export interface AdminUserRow {
@@ -69,6 +72,7 @@ export interface AdminUserRow {
   role_id: string | null
   role_name: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface AdminAccessControlResponse {
@@ -93,8 +97,15 @@ export interface AdminActivityRow {
   actor_user: AdminActivityActor | null
 }
 
+export interface AdminLogSettingsRow {
+  auto_clear_value: number
+  auto_clear_unit: AdminLogAutoClearUnit
+  last_cleared_at: string
+}
+
 export interface AdminActivitiesResponse {
   activities: AdminActivityRow[]
+  settings: AdminLogSettingsRow
 }
 
 export interface AdminSessionContext {

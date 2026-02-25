@@ -2,11 +2,13 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminHiddenPage from './AdminHiddenPage'
 import {
-  assignAdminUserRole,
+  clearAdminActivities,
   createAdminRole,
   createAdminUser,
   deleteAdminCotizacion,
+  deleteAdminRole,
   deleteAdminSiniestro,
+  deleteAdminUser,
   fetchAdminAccessControl,
   fetchAdminActivities,
   fetchAdminDashboard,
@@ -14,16 +16,22 @@ import {
   fetchAdminSiniestroArchivos,
   loginAdmin,
   logoutAdmin,
-  trackAdminView
+  trackAdminView,
+  updateAdminLogSettings,
+  updateAdminRole,
+  updateAdminUser,
+  updateSuperAdminCredentials
 } from '../lib/adminApi'
 import type { AdminDashboardResponse } from '../types/admin'
 
 vi.mock('../lib/adminApi', () => ({
-  assignAdminUserRole: vi.fn(),
+  clearAdminActivities: vi.fn(),
   createAdminRole: vi.fn(),
   createAdminUser: vi.fn(),
   deleteAdminCotizacion: vi.fn(),
+  deleteAdminRole: vi.fn(),
   deleteAdminSiniestro: vi.fn(),
+  deleteAdminUser: vi.fn(),
   fetchAdminAccessControl: vi.fn(),
   fetchAdminActivities: vi.fn(),
   fetchAdminDashboard: vi.fn(),
@@ -31,14 +39,20 @@ vi.mock('../lib/adminApi', () => ({
   fetchAdminSiniestroArchivos: vi.fn(),
   loginAdmin: vi.fn(),
   logoutAdmin: vi.fn(),
-  trackAdminView: vi.fn()
+  trackAdminView: vi.fn(),
+  updateAdminLogSettings: vi.fn(),
+  updateAdminRole: vi.fn(),
+  updateAdminUser: vi.fn(),
+  updateSuperAdminCredentials: vi.fn()
 }))
 
-const mockedAssignAdminUserRole = vi.mocked(assignAdminUserRole)
+const mockedClearAdminActivities = vi.mocked(clearAdminActivities)
 const mockedCreateAdminRole = vi.mocked(createAdminRole)
 const mockedCreateAdminUser = vi.mocked(createAdminUser)
 const mockedDeleteAdminCotizacion = vi.mocked(deleteAdminCotizacion)
+const mockedDeleteAdminRole = vi.mocked(deleteAdminRole)
 const mockedDeleteAdminSiniestro = vi.mocked(deleteAdminSiniestro)
+const mockedDeleteAdminUser = vi.mocked(deleteAdminUser)
 const mockedFetchAdminAccessControl = vi.mocked(fetchAdminAccessControl)
 const mockedFetchAdminActivities = vi.mocked(fetchAdminActivities)
 const mockedFetchAdminDashboard = vi.mocked(fetchAdminDashboard)
@@ -47,6 +61,10 @@ const mockedFetchAdminSiniestroArchivos = vi.mocked(fetchAdminSiniestroArchivos)
 const mockedLoginAdmin = vi.mocked(loginAdmin)
 const mockedLogoutAdmin = vi.mocked(logoutAdmin)
 const mockedTrackAdminView = vi.mocked(trackAdminView)
+const mockedUpdateAdminLogSettings = vi.mocked(updateAdminLogSettings)
+const mockedUpdateAdminRole = vi.mocked(updateAdminRole)
+const mockedUpdateAdminUser = vi.mocked(updateAdminUser)
+const mockedUpdateSuperAdminCredentials = vi.mocked(updateSuperAdminCredentials)
 
 const sampleAdminData: AdminDashboardResponse = {
   cotizaciones: [
@@ -110,11 +128,13 @@ const sampleAdminData: AdminDashboardResponse = {
 
 describe('AdminHiddenPage', () => {
   beforeEach(() => {
-    mockedAssignAdminUserRole.mockReset()
+    mockedClearAdminActivities.mockReset()
     mockedCreateAdminRole.mockReset()
     mockedCreateAdminUser.mockReset()
     mockedDeleteAdminCotizacion.mockReset()
+    mockedDeleteAdminRole.mockReset()
     mockedDeleteAdminSiniestro.mockReset()
+    mockedDeleteAdminUser.mockReset()
     mockedFetchAdminAccessControl.mockReset()
     mockedFetchAdminActivities.mockReset()
     mockedFetchAdminDashboard.mockReset()
@@ -123,7 +143,12 @@ describe('AdminHiddenPage', () => {
     mockedLoginAdmin.mockReset()
     mockedLogoutAdmin.mockReset()
     mockedTrackAdminView.mockReset()
+    mockedUpdateAdminLogSettings.mockReset()
+    mockedUpdateAdminRole.mockReset()
+    mockedUpdateAdminUser.mockReset()
+    mockedUpdateSuperAdminCredentials.mockReset()
     vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue(null)
   })
 
   it('renders login form with USER and PASSWORD', () => {

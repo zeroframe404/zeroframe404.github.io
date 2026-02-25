@@ -4,13 +4,15 @@ import {
   scryptSync,
   timingSafeEqual
 } from 'node:crypto'
-import { Prisma } from '@prisma/client'
+import { AdminLogAutoClearUnit as PrismaAdminLogAutoClearUnit, Prisma } from '@prisma/client'
 import { env } from '../../config/env.js'
 import { normalizeLimit } from '../../utils/validation/common.js'
 import { prisma } from '../db/prisma.js'
 import { downloadSiniestroFileByKey } from '../storage/s3Client.js'
 import type {
   AdminAccessControlResponse,
+  AdminLogAutoClearUnit,
+  AdminLogSettingsRow,
   AdminActivitiesResponse,
   AdminActivityRow,
   AdminDashboardResponse,
@@ -63,6 +65,7 @@ type AdminActivityWithActor = Prisma.AdminActivityGetPayload<{
 }>
 
 let ensureRootAdminPromise: Promise<void> | null = null
+const LOG_SETTINGS_ID = 1
 
 function hashToken(rawToken: string) {
   return createHash('sha256')
@@ -103,6 +106,19 @@ function verifyPassword(password: string, storedHash: string) {
   }
 
   return timingSafeEqual(actual, expected)
+}
+
+function validatePasswordOrThrow(passwordRaw: string) {
+  const password = passwordRaw.trim()
+  if (!password) {
+    throw new Error('La contrasena es obligatoria.')
+  }
+
+  if (password.length < 8) {
+    throw new Error('La contrasena debe tener al menos 8 caracteres.')
+  }
+
+  return password
 }
 
 function mapRolePermissions(
@@ -148,6 +164,7 @@ function mapAdminRoleToRow(role: {
   id: string
   name: string
   createdAt: Date
+  updatedAt: Date
   canViewCotizaciones: boolean
   canDeleteCotizaciones: boolean
   canViewSiniestros: boolean
@@ -157,6 +174,7 @@ function mapAdminRoleToRow(role: {
     id: role.id,
     name: role.name,
     created_at: role.createdAt.toISOString(),
+    updated_at: role.updatedAt.toISOString(),
     permissions: {
       can_view_cotizaciones: role.canViewCotizaciones,
       can_delete_cotizaciones: role.canDeleteCotizaciones,
@@ -174,7 +192,8 @@ function mapAdminUserToRow(user: AdminUserWithRole): AdminUserRow {
     is_active: user.isActive,
     role_id: user.roleId,
     role_name: user.role?.name ?? null,
-    created_at: user.createdAt.toISOString()
+    created_at: user.createdAt.toISOString(),
+    updated_at: user.updatedAt.toISOString()
   }
 }
 
@@ -195,6 +214,39 @@ function mapAdminActivityToRow(activity: AdminActivityWithActor): AdminActivityR
         }
       : null
   }
+}
+
+function mapAdminLogSettingsToRow(settings: {
+  autoClearValue: number
+  autoClearUnit: PrismaAdminLogAutoClearUnit
+  lastClearedAt: Date
+}): AdminLogSettingsRow {
+  return {
+    auto_clear_value: settings.autoClearValue,
+    auto_clear_unit: settings.autoClearUnit as AdminLogAutoClearUnit,
+    last_cleared_at: settings.lastClearedAt.toISOString()
+  }
+}
+
+function calculateNextAutoClearDate(settings: {
+  lastClearedAt: Date
+  autoClearValue: number
+  autoClearUnit: PrismaAdminLogAutoClearUnit
+}) {
+  const nextDate = new Date(settings.lastClearedAt)
+
+  if (settings.autoClearUnit === 'day') {
+    nextDate.setUTCDate(nextDate.getUTCDate() + settings.autoClearValue)
+    return nextDate
+  }
+
+  if (settings.autoClearUnit === 'week') {
+    nextDate.setUTCDate(nextDate.getUTCDate() + settings.autoClearValue * 7)
+    return nextDate
+  }
+
+  nextDate.setUTCMonth(nextDate.getUTCMonth() + settings.autoClearValue)
+  return nextDate
 }
 
 function mapCotizacionToAdminRow(cotizacion: {
@@ -261,13 +313,46 @@ function mapSiniestroToAdminRow(siniestro: {
   }
 }
 
+async function ensureAdminLogSettingsInternal() {
+  return prisma.adminLogSettings.upsert({
+    where: { id: LOG_SETTINGS_ID },
+    update: {},
+    create: {
+      id: LOG_SETTINGS_ID
+    }
+  })
+}
+
+async function maybeAutoClearAdminActivities() {
+  const settings = await ensureAdminLogSettingsInternal()
+  const nextAutoClearAt = calculateNextAutoClearDate(settings)
+  const now = new Date()
+
+  if (nextAutoClearAt > now) {
+    return settings
+  }
+
+  const [, updatedSettings] = await prisma.$transaction([
+    prisma.adminActivity.deleteMany({}),
+    prisma.adminLogSettings.update({
+      where: { id: LOG_SETTINGS_ID },
+      data: {
+        lastClearedAt: now
+      }
+    })
+  ])
+
+  return updatedSettings
+}
+
 async function ensureRootAdminUserInternal() {
-  const normalizedUsername = normalizeUsername(ROOT_USERNAME)
-  const existingUser = await prisma.adminUser.findUnique({
-    where: { usernameNormalized: normalizedUsername }
+  const existingSuperAdmin = await prisma.adminUser.findFirst({
+    where: { isSuperAdmin: true },
+    orderBy: [{ createdAt: 'asc' }]
   })
 
-  if (!existingUser) {
+  if (!existingSuperAdmin) {
+    const normalizedUsername = normalizeUsername(ROOT_USERNAME)
     await prisma.adminUser.create({
       data: {
         username: ROOT_USERNAME,
@@ -277,36 +362,25 @@ async function ensureRootAdminUserInternal() {
         isActive: true
       }
     })
-    return
+  } else {
+    const updateData: Prisma.AdminUserUpdateInput = {}
+    if (!existingSuperAdmin.isActive) {
+      updateData.isActive = true
+    }
+
+    if (existingSuperAdmin.roleId) {
+      updateData.role = { disconnect: true }
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.adminUser.update({
+        where: { id: existingSuperAdmin.id },
+        data: updateData
+      })
+    }
   }
 
-  const needsPasswordUpdate = !verifyPassword(ROOT_PASSWORD, existingUser.passwordHash)
-
-  const updateData: Prisma.AdminUserUpdateInput = {}
-  if (!existingUser.isSuperAdmin) {
-    updateData.isSuperAdmin = true
-  }
-
-  if (!existingUser.isActive) {
-    updateData.isActive = true
-  }
-
-  if (existingUser.roleId) {
-    updateData.role = { disconnect: true }
-  }
-
-  if (needsPasswordUpdate) {
-    updateData.passwordHash = hashPassword(ROOT_PASSWORD)
-  }
-
-  if (Object.keys(updateData).length === 0) {
-    return
-  }
-
-  await prisma.adminUser.update({
-    where: { id: existingUser.id },
-    data: updateData
-  })
+  await ensureAdminLogSettingsInternal()
 }
 
 export async function ensureRootAdminUser() {
@@ -436,6 +510,8 @@ export async function registerAdminActivity(input: {
   description: string
   metadata?: unknown
 }) {
+  await maybeAutoClearAdminActivities()
+
   await prisma.adminActivity.create({
     data: {
       actorUserId: input.actorUserId,
@@ -613,6 +689,39 @@ export async function createAdminRole(input: {
   return mapAdminRoleToRow(role)
 }
 
+export async function updateAdminRole(input: {
+  roleId: string
+  name: string
+  permissions: AdminPermissionMap
+}) {
+  const roleName = input.name.trim()
+  if (!roleName) {
+    throw new Error('El nombre del rol es obligatorio.')
+  }
+
+  const updatedRole = await prisma.adminRole.update({
+    where: { id: input.roleId },
+    data: {
+      name: roleName,
+      nameNormalized: normalizeRoleName(roleName),
+      canViewCotizaciones: input.permissions.can_view_cotizaciones,
+      canDeleteCotizaciones: input.permissions.can_delete_cotizaciones,
+      canViewSiniestros: input.permissions.can_view_siniestros,
+      canDeleteSiniestros: input.permissions.can_delete_siniestros
+    }
+  })
+
+  return mapAdminRoleToRow(updatedRole)
+}
+
+export async function deleteAdminRole(roleId: string) {
+  const result = await prisma.adminRole.deleteMany({
+    where: { id: roleId }
+  })
+
+  return result.count > 0
+}
+
 export async function createAdminUser(input: {
   username: string
   password: string
@@ -626,14 +735,7 @@ export async function createAdminUser(input: {
     throw new Error('El usuario es obligatorio.')
   }
 
-  const password = input.password.trim()
-  if (!password) {
-    throw new Error('La contraseña es obligatoria.')
-  }
-
-  if (password.length < 8) {
-    throw new Error('La contraseña debe tener al menos 8 caracteres.')
-  }
+  const password = validatePasswordOrThrow(input.password)
 
   if (input.roleId) {
     const existingRole = await prisma.adminRole.findUnique({
@@ -662,9 +764,12 @@ export async function createAdminUser(input: {
   return mapAdminUserToRow(user)
 }
 
-export async function assignAdminUserRole(input: {
+export async function updateAdminUser(input: {
   userId: string
-  roleId: string | null
+  username?: string
+  password?: string
+  roleId?: string | null
+  isActive?: boolean
 }) {
   const user = await prisma.adminUser.findUnique({
     where: { id: input.userId }
@@ -675,24 +780,52 @@ export async function assignAdminUserRole(input: {
   }
 
   if (user.isSuperAdmin) {
-    throw new Error('No se puede cambiar el rol del admin principal.')
+    throw new Error('El admin principal se edita desde su seccion de credenciales.')
   }
 
-  if (input.roleId) {
-    const role = await prisma.adminRole.findUnique({
-      where: { id: input.roleId }
-    })
+  const updateData: Prisma.AdminUserUncheckedUpdateInput = {}
 
-    if (!role) {
-      throw new Error('El rol seleccionado no existe.')
+  if (typeof input.username === 'string') {
+    const username = input.username.trim()
+    const normalizedUsername = normalizeUsername(username)
+    if (!username || !normalizedUsername) {
+      throw new Error('El usuario es obligatorio.')
     }
+
+    updateData.username = username
+    updateData.usernameNormalized = normalizedUsername
+  }
+
+  if (typeof input.password === 'string' && input.password.trim().length > 0) {
+    const password = validatePasswordOrThrow(input.password)
+    updateData.passwordHash = hashPassword(password)
+  }
+
+  if (input.roleId !== undefined) {
+    if (input.roleId) {
+      const role = await prisma.adminRole.findUnique({
+        where: { id: input.roleId }
+      })
+
+      if (!role) {
+        throw new Error('El rol seleccionado no existe.')
+      }
+    }
+
+    updateData.roleId = input.roleId
+  }
+
+  if (typeof input.isActive === 'boolean') {
+    updateData.isActive = input.isActive
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    throw new Error('No hay cambios para guardar.')
   }
 
   const updatedUser = await prisma.adminUser.update({
     where: { id: input.userId },
-    data: {
-      roleId: input.roleId
-    },
+    data: updateData,
     include: {
       role: true
     }
@@ -701,9 +834,255 @@ export async function assignAdminUserRole(input: {
   return mapAdminUserToRow(updatedUser)
 }
 
-export async function getAdminActivities(rawLimit: unknown): Promise<AdminActivitiesResponse> {
-  const limit = normalizeLimit(rawLimit, 200, 1000)
+export async function deleteAdminUser(userId: string) {
+  const user = await prisma.adminUser.findUnique({
+    where: { id: userId }
+  })
+
+  if (!user) {
+    return false
+  }
+
+  if (user.isSuperAdmin) {
+    throw new Error('No se puede eliminar el admin principal.')
+  }
+
+  await prisma.adminUser.delete({
+    where: { id: userId }
+  })
+
+  return true
+}
+
+export async function assignAdminUserRole(input: {
+  userId: string
+  roleId: string | null
+}) {
+  return updateAdminUser({
+    userId: input.userId,
+    roleId: input.roleId
+  })
+}
+
+export async function updateSuperAdminCredentials(input: {
+  userId: string
+  username?: string
+  password?: string
+}) {
+  const user = await prisma.adminUser.findUnique({
+    where: { id: input.userId },
+    include: {
+      role: true
+    }
+  })
+
+  if (!user) {
+    return null
+  }
+
+  if (!user.isSuperAdmin) {
+    throw new Error('Solo el admin principal puede actualizar sus credenciales.')
+  }
+
+  const updateData: Prisma.AdminUserUncheckedUpdateInput = {}
+
+  if (typeof input.username === 'string') {
+    const username = input.username.trim()
+    const normalizedUsername = normalizeUsername(username)
+    if (!username || !normalizedUsername) {
+      throw new Error('El usuario es obligatorio.')
+    }
+
+    updateData.username = username
+    updateData.usernameNormalized = normalizedUsername
+  }
+
+  if (typeof input.password === 'string' && input.password.trim().length > 0) {
+    const password = validatePasswordOrThrow(input.password)
+    updateData.passwordHash = hashPassword(password)
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    throw new Error('No hay cambios para guardar.')
+  }
+
+  const updatedUser = await prisma.adminUser.update({
+    where: { id: user.id },
+    data: updateData,
+    include: {
+      role: true
+    }
+  })
+
+  return mapAdminUserToRow(updatedUser)
+}
+
+export async function getAdminLogSettings() {
+  const settings = await maybeAutoClearAdminActivities()
+  return mapAdminLogSettingsToRow(settings)
+}
+
+export async function updateAdminLogSettings(input: {
+  autoClearValue: number
+  autoClearUnit: AdminLogAutoClearUnit
+}) {
+  if (!Number.isInteger(input.autoClearValue) || input.autoClearValue <= 0) {
+    throw new Error('El valor de autolimpieza debe ser un numero entero mayor a 0.')
+  }
+
+  if (input.autoClearValue > 1000) {
+    throw new Error('El valor de autolimpieza es demasiado alto.')
+  }
+
+  const updated = await prisma.adminLogSettings.upsert({
+    where: { id: LOG_SETTINGS_ID },
+    update: {
+      autoClearValue: input.autoClearValue,
+      autoClearUnit: input.autoClearUnit as PrismaAdminLogAutoClearUnit
+    },
+    create: {
+      id: LOG_SETTINGS_ID,
+      autoClearValue: input.autoClearValue,
+      autoClearUnit: input.autoClearUnit as PrismaAdminLogAutoClearUnit
+    }
+  })
+
+  return mapAdminLogSettingsToRow(updated)
+}
+
+export async function clearAdminActivities() {
+  const now = new Date()
+  const [, updatedSettings] = await prisma.$transaction([
+    prisma.adminActivity.deleteMany({}),
+    prisma.adminLogSettings.upsert({
+      where: { id: LOG_SETTINGS_ID },
+      update: {
+        lastClearedAt: now
+      },
+      create: {
+        id: LOG_SETTINGS_ID,
+        lastClearedAt: now
+      }
+    })
+  ])
+
+  return mapAdminLogSettingsToRow(updatedSettings)
+}
+
+export async function getAdminActivities(input: {
+  rawLimit: unknown
+  actorUserId?: string
+  actorUsername?: string
+  action?: string
+  section?: string
+  search?: string
+  dateFrom?: Date | null
+  dateTo?: Date | null
+}): Promise<AdminActivitiesResponse> {
+  const limit = normalizeLimit(input.rawLimit, 200, 1000)
+  const settings = await maybeAutoClearAdminActivities()
+  const filters: Prisma.AdminActivityWhereInput[] = []
+
+  if (input.actorUserId) {
+    filters.push({
+      actorUserId: input.actorUserId
+    })
+  }
+
+  if (input.actorUsername) {
+    filters.push({
+      actorUser: {
+        is: {
+          username: {
+            contains: input.actorUsername,
+            mode: 'insensitive'
+          }
+        }
+      }
+    })
+  }
+
+  if (input.action) {
+    filters.push({
+      action: {
+        contains: input.action,
+        mode: 'insensitive'
+      }
+    })
+  }
+
+  if (input.section) {
+    filters.push({
+      section: {
+        contains: input.section,
+        mode: 'insensitive'
+      }
+    })
+  }
+
+  if (input.dateFrom || input.dateTo) {
+    const createdAt: Prisma.DateTimeFilter = {}
+    if (input.dateFrom) {
+      createdAt.gte = input.dateFrom
+    }
+
+    if (input.dateTo) {
+      createdAt.lte = input.dateTo
+    }
+
+    filters.push({ createdAt })
+  }
+
+  if (input.search) {
+    filters.push({
+      OR: [
+        {
+          action: {
+            contains: input.search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          section: {
+            contains: input.search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          description: {
+            contains: input.search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          targetId: {
+            contains: input.search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          actorUser: {
+            is: {
+              username: {
+                contains: input.search,
+                mode: 'insensitive'
+              }
+            }
+          }
+        }
+      ]
+    })
+  }
+
+  const where: Prisma.AdminActivityWhereInput =
+    filters.length > 0
+      ? {
+          AND: filters
+        }
+      : {}
+
   const activities = await prisma.adminActivity.findMany({
+    where,
     orderBy: [{ createdAt: 'desc' }],
     take: limit,
     include: {
@@ -714,6 +1093,7 @@ export async function getAdminActivities(rawLimit: unknown): Promise<AdminActivi
   })
 
   return {
-    activities: activities.map(mapAdminActivityToRow)
+    activities: activities.map(mapAdminActivityToRow),
+    settings: mapAdminLogSettingsToRow(settings)
   }
 }
