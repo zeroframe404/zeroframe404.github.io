@@ -29,7 +29,9 @@ Variables clave:
   - `VITE_DEV_API_TARGET` (default: `http://localhost:8787`)
 - Backend:
   - `DATABASE_URL`
-  - `ADMIN_DASHBOARD_PASSWORD`
+  - `ADMIN_ROOT_USERNAME` (default: `Daniel`)
+  - `ADMIN_ROOT_PASSWORD` (default: `DockSud1945!#!`)
+  - `ADMIN_DASHBOARD_PASSWORD` (legacy opcional)
   - `COOKIE_SECRET`
   - `ADMIN_SESSION_TTL_HOURS`
   - `ADMIN_COOKIE_SAME_SITE` (`lax`, `strict`, `none`)
@@ -76,7 +78,7 @@ Archivos usados:
 Pasos:
 
 1. Crear `.env` desde `.env.example` y completar secretos:
-   - `ADMIN_DASHBOARD_PASSWORD`
+   - `ADMIN_ROOT_PASSWORD`
    - `COOKIE_SECRET`
    - `POSTGRES_PASSWORD`
 2. Ajustar dominios en `nginx/conf.d/default.conf`.
@@ -120,7 +122,8 @@ Backend (`Web Service`):
   - `npm run start:server`
 - Variables mínimas:
   - `DATABASE_URL` (internal de Render)
-  - `ADMIN_DASHBOARD_PASSWORD`
+  - `ADMIN_ROOT_USERNAME`
+  - `ADMIN_ROOT_PASSWORD`
   - `COOKIE_SECRET`
   - `ADMIN_SESSION_TTL_HOURS=8`
   - `ADMIN_COOKIE_SAME_SITE=none`
@@ -171,6 +174,11 @@ npm run start:server
 - `POST /api/admin/login`
 - `POST /api/admin/logout`
 - `GET /api/admin/dashboard?limit=500`
+- `GET /api/admin/access-control`
+- `POST /api/admin/roles`
+- `POST /api/admin/users`
+- `PATCH /api/admin/users/:userId/role`
+- `GET /api/admin/activities?limit=200`
 
 ## Admin oculto
 

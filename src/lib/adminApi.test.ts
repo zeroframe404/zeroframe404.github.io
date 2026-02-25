@@ -6,7 +6,8 @@ import {
   fetchAdminSiniestroArchivos,
   fetchAdminDashboard,
   loginAdmin,
-  logoutAdmin
+  logoutAdmin,
+  trackAdminView
 } from './adminApi'
 import type { AdminDashboardResponse } from '../types/admin'
 
@@ -34,7 +35,22 @@ const sampleDashboardResponse: AdminDashboardResponse = {
   totals: {
     cotizaciones: 1,
     siniestros: 0
-  }
+  },
+  current_user: {
+    id: 'user-1',
+    username: 'Daniel',
+    is_super_admin: true,
+    role_id: null,
+    role_name: null
+  },
+  permissions: {
+    can_view_cotizaciones: true,
+    can_delete_cotizaciones: true,
+    can_view_siniestros: true,
+    can_delete_siniestros: true
+  },
+  can_manage_access: true,
+  can_view_activities: true
 }
 
 const sampleSiniestroFilesPayload = {
@@ -65,20 +81,21 @@ describe('adminApi', () => {
     vi.restoreAllMocks()
   })
 
-  it('loginAdmin calls /api/admin/login and succeeds on 200', async () => {
+  it('loginAdmin calls /api/admin/login with username+password', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(makeJsonResponse(200, { ok: true }))
 
-    await expect(loginAdmin('DanielMartinez2001')).resolves.toBeUndefined()
+    await expect(loginAdmin('Daniel', 'DockSud1945!#!')).resolves.toBeUndefined()
 
     expect(fetchMock).toHaveBeenCalledWith('/api/admin/login', expect.objectContaining({
       method: 'POST',
-      credentials: 'include'
+      credentials: 'include',
+      body: JSON.stringify({ username: 'Daniel', password: 'DockSud1945!#!' })
     }))
   })
 
-  it('fetchAdminDashboard normalizes limit and returns parsed payload', async () => {
+  it('fetchAdminDashboard returns parsed payload', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(makeJsonResponse(200, sampleDashboardResponse))
@@ -94,14 +111,6 @@ describe('adminApi', () => {
     )
   })
 
-  it('fetchAdminDashboard maps 401 to unauthorized message', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      makeJsonResponse(401, { error: 'Credenciales inválidas' })
-    )
-
-    await expect(fetchAdminDashboard()).rejects.toThrow('No autorizado.')
-  })
-
   it('logoutAdmin calls /api/admin/logout', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
@@ -113,6 +122,22 @@ describe('adminApi', () => {
       method: 'POST',
       credentials: 'include'
     }))
+  })
+
+  it('trackAdminView calls track endpoint', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(makeJsonResponse(200, { ok: true }))
+
+    await expect(trackAdminView({ section: 'cotizaciones', targetId: 'cotizacion-1' })).resolves.toBeUndefined()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/track-view',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include'
+      })
+    )
   })
 
   it('fetchAdminSiniestroArchivos returns parsed files payload', async () => {

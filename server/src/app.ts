@@ -19,7 +19,7 @@ function setCorsHeaders(response: express.Response, origin: string) {
   response.setHeader('Vary', 'Origin')
   response.setHeader('Access-Control-Allow-Origin', origin)
   response.setHeader('Access-Control-Allow-Credentials', 'true')
-  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
+  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS')
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 }
 

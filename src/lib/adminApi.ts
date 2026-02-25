@@ -1,11 +1,16 @@
 import type {
+  AdminAccessControlResponse,
+  AdminActivitiesResponse,
   AdminDashboardResponse,
-  AdminLeadRow,
-  AdminSiniestroArchivo
+  AdminPermissionMap,
+  AdminRoleRow,
+  AdminSiniestroArchivo,
+  AdminUserRow
 } from '../types/admin'
 import { apiRequest, readApiError } from './apiClient'
 
 const DEFAULT_LIMIT = 500
+const DEFAULT_ACTIVITY_LIMIT = 200
 const MAX_LIMIT = 1000
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -16,7 +21,18 @@ function isNullableString(value: unknown): value is string | null {
   return typeof value === 'string' || value === null
 }
 
-function isAdminLeadRow(value: unknown): value is AdminLeadRow {
+function isAdminPermissionMap(value: unknown): value is AdminPermissionMap {
+  if (!isRecord(value)) return false
+
+  return (
+    typeof value.can_view_cotizaciones === 'boolean' &&
+    typeof value.can_delete_cotizaciones === 'boolean' &&
+    typeof value.can_view_siniestros === 'boolean' &&
+    typeof value.can_delete_siniestros === 'boolean'
+  )
+}
+
+function isAdminLeadRow(value: unknown) {
   if (!isRecord(value)) return false
 
   return (
@@ -38,6 +54,18 @@ function isAdminLeadRow(value: unknown): value is AdminLeadRow {
   )
 }
 
+function isAdminSessionUser(value: unknown) {
+  if (!isRecord(value)) return false
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.username === 'string' &&
+    typeof value.is_super_admin === 'boolean' &&
+    isNullableString(value.role_id) &&
+    isNullableString(value.role_name)
+  )
+}
+
 function isAdminDashboardResponse(value: unknown): value is AdminDashboardResponse {
   if (!isRecord(value) || !isRecord(value.totals)) {
     return false
@@ -51,7 +79,11 @@ function isAdminDashboardResponse(value: unknown): value is AdminDashboardRespon
     value.cotizaciones.every(isAdminLeadRow) &&
     value.siniestros.every(isAdminLeadRow) &&
     typeof value.totals.cotizaciones === 'number' &&
-    typeof value.totals.siniestros === 'number'
+    typeof value.totals.siniestros === 'number' &&
+    isAdminSessionUser(value.current_user) &&
+    isAdminPermissionMap(value.permissions) &&
+    typeof value.can_manage_access === 'boolean' &&
+    typeof value.can_view_activities === 'boolean'
   )
 }
 
@@ -79,6 +111,76 @@ function isAdminSiniestroArchivosPayload(value: unknown): value is { archivos: A
   return value.archivos.every(isAdminSiniestroArchivo)
 }
 
+function isAdminRoleRow(value: unknown): value is AdminRoleRow {
+  if (!isRecord(value)) return false
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.created_at === 'string' &&
+    isAdminPermissionMap(value.permissions)
+  )
+}
+
+function isAdminUserRow(value: unknown): value is AdminUserRow {
+  if (!isRecord(value)) return false
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.username === 'string' &&
+    typeof value.is_super_admin === 'boolean' &&
+    typeof value.is_active === 'boolean' &&
+    isNullableString(value.role_id) &&
+    isNullableString(value.role_name) &&
+    typeof value.created_at === 'string'
+  )
+}
+
+function isAdminAccessControlResponse(value: unknown): value is AdminAccessControlResponse {
+  if (!isRecord(value) || !Array.isArray(value.roles) || !Array.isArray(value.users)) {
+    return false
+  }
+
+  return value.roles.every(isAdminRoleRow) && value.users.every(isAdminUserRow)
+}
+
+function isAdminActivitiesResponse(value: unknown): value is AdminActivitiesResponse {
+  if (!isRecord(value) || !Array.isArray(value.activities)) {
+    return false
+  }
+
+  return value.activities.every((activity) => {
+    if (!isRecord(activity)) return false
+
+    const actorUser = activity.actor_user
+    const validActor =
+      actorUser === null ||
+      (isRecord(actorUser) &&
+        typeof actorUser.id === 'string' &&
+        typeof actorUser.username === 'string' &&
+        typeof actorUser.is_super_admin === 'boolean' &&
+        isNullableString(actorUser.role_name))
+
+    return (
+      typeof activity.id === 'string' &&
+      typeof activity.created_at === 'string' &&
+      typeof activity.action === 'string' &&
+      isNullableString(activity.section) &&
+      isNullableString(activity.target_id) &&
+      typeof activity.description === 'string' &&
+      validActor
+    )
+  })
+}
+
+function isAdminRolePayload(value: unknown): value is { role: AdminRoleRow } {
+  return isRecord(value) && isAdminRoleRow(value.role)
+}
+
+function isAdminUserPayload(value: unknown): value is { user: AdminUserRow } {
+  return isRecord(value) && isAdminUserRow(value.user)
+}
+
 function normalizeLimit(limit: number) {
   if (!Number.isFinite(limit) || limit <= 0) {
     return DEFAULT_LIMIT
@@ -87,17 +189,17 @@ function normalizeLimit(limit: number) {
   return Math.min(Math.trunc(limit), MAX_LIMIT)
 }
 
-export async function loginAdmin(password: string) {
+export async function loginAdmin(username: string, password: string) {
   const response = await apiRequest('/api/admin/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ username, password })
   })
 
   if (!response.ok) {
-    const message = await readApiError(response, 'No se pudo iniciar sesión.')
+    const message = await readApiError(response, 'No se pudo iniciar sesion.')
     throw new Error(message)
   }
 }
@@ -108,7 +210,7 @@ export async function logoutAdmin() {
   })
 
   if (!response.ok) {
-    const message = await readApiError(response, 'No se pudo cerrar sesión.')
+    const message = await readApiError(response, 'No se pudo cerrar sesion.')
     throw new Error(message)
   }
 }
@@ -133,10 +235,38 @@ export async function fetchAdminDashboard(limit = DEFAULT_LIMIT) {
 
   const data = (await response.json()) as unknown
   if (!isAdminDashboardResponse(data)) {
-    throw new Error('La respuesta del backend no es válida.')
+    throw new Error('La respuesta del backend no es valida.')
   }
 
   return data
+}
+
+export async function trackAdminView(input: {
+  section: 'cotizaciones' | 'siniestros'
+  targetId?: string
+}) {
+  const response = await apiRequest('/api/admin/track-view', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      section: input.section,
+      target_id: input.targetId || null
+    })
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(
+      response,
+      'No pudimos registrar la actividad.'
+    )
+    throw new Error(message)
+  }
 }
 
 export async function fetchAdminSiniestroArchivos(siniestroId: string) {
@@ -159,7 +289,7 @@ export async function fetchAdminSiniestroArchivos(siniestroId: string) {
 
   const payload = (await response.json()) as unknown
   if (!isAdminSiniestroArchivosPayload(payload)) {
-    throw new Error('La respuesta de archivos no es válida.')
+    throw new Error('La respuesta de archivos no es valida.')
   }
 
   return payload.archivos
@@ -206,7 +336,7 @@ export async function deleteAdminCotizacion(cotizacionId: string) {
 
     const message = await readApiError(
       response,
-      'No pudimos eliminar la cotización.'
+      'No pudimos eliminar la cotizacion.'
     )
     throw new Error(message)
   }
@@ -229,4 +359,150 @@ export async function deleteAdminSiniestro(siniestroId: string) {
     )
     throw new Error(message)
   }
+}
+
+export async function fetchAdminAccessControl() {
+  const response = await apiRequest('/api/admin/access-control', {
+    method: 'GET'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(
+      response,
+      'No pudimos obtener usuarios y roles.'
+    )
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminAccessControlResponse(payload)) {
+    throw new Error('La respuesta de access-control no es valida.')
+  }
+
+  return payload
+}
+
+export async function createAdminRole(input: {
+  name: string
+  permissions: AdminPermissionMap
+}) {
+  const response = await apiRequest('/api/admin/roles', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: input.name,
+      permissions: input.permissions
+    })
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos crear el rol.')
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminRolePayload(payload)) {
+    throw new Error('La respuesta de creacion de rol no es valida.')
+  }
+
+  return payload.role
+}
+
+export async function createAdminUser(input: {
+  username: string
+  password: string
+  roleId: string | null
+}) {
+  const response = await apiRequest('/api/admin/users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username: input.username,
+      password: input.password,
+      role_id: input.roleId
+    })
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos crear el usuario.')
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminUserPayload(payload)) {
+    throw new Error('La respuesta de creacion de usuario no es valida.')
+  }
+
+  return payload.user
+}
+
+export async function assignAdminUserRole(input: {
+  userId: string
+  roleId: string | null
+}) {
+  const encodedUserId = encodeURIComponent(input.userId)
+  const response = await apiRequest(`/api/admin/users/${encodedUserId}/role`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      role_id: input.roleId
+    })
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos actualizar el rol del usuario.')
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminUserPayload(payload)) {
+    throw new Error('La respuesta de asignacion de rol no es valida.')
+  }
+
+  return payload.user
+}
+
+export async function fetchAdminActivities(limit = DEFAULT_ACTIVITY_LIMIT) {
+  const normalizedLimit = normalizeLimit(limit)
+  const response = await apiRequest(`/api/admin/activities?limit=${normalizedLimit}`, {
+    method: 'GET'
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('No autorizado.')
+    }
+
+    const message = await readApiError(response, 'No pudimos obtener actividades.')
+    throw new Error(message)
+  }
+
+  const payload = (await response.json()) as unknown
+  if (!isAdminActivitiesResponse(payload)) {
+    throw new Error('La respuesta de actividades no es valida.')
+  }
+
+  return payload.activities
 }

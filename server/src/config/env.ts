@@ -20,7 +20,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(8787),
   DATABASE_URL: z.string().min(1),
-  ADMIN_DASHBOARD_PASSWORD: z.string().min(1),
+  ADMIN_DASHBOARD_PASSWORD: optionalTrimmedString,
+  ADMIN_ROOT_USERNAME: optionalTrimmedString,
+  ADMIN_ROOT_PASSWORD: optionalTrimmedString,
   ADMIN_SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(8),
   ADMIN_COOKIE_SAME_SITE: z.enum(['lax', 'none', 'strict']).default('lax'),
   COOKIE_SECRET: z.string().min(1),
@@ -43,6 +45,12 @@ if (!parsed.success) {
 }
 
 const envData = parsed.data
+const rootUsername = envData.ADMIN_ROOT_USERNAME || 'Daniel'
+const rootPassword =
+  envData.ADMIN_ROOT_PASSWORD ||
+  envData.ADMIN_DASHBOARD_PASSWORD ||
+  'DockSud1945!#!'
+
 if (envData.SINIESTRO_FILE_STORAGE !== 'db') {
   const missingAwsVars = [
     ['AWS_REGION', envData.AWS_REGION],
@@ -69,7 +77,11 @@ if (
   )
 }
 
-export const env = envData
+export const env = {
+  ...envData,
+  ADMIN_ROOT_USERNAME: rootUsername,
+  ADMIN_ROOT_PASSWORD: rootPassword
+}
 
 export function isProduction() {
   return env.NODE_ENV === 'production'
