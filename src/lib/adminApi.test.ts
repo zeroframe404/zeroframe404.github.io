@@ -24,10 +24,15 @@ const sampleDashboardResponse: AdminDashboardResponse = {
       marca_modelo: 'Fiat Cronos',
       anio: '2022',
       localidad: 'Avellaneda',
+      codigo_postal: '1870',
       uso: 'particular',
       cobertura_deseada: 'terceros_completo',
       motivo_contacto: 'cotizacion',
       mensaje: 'Necesito cotizar',
+      routing_branch: 'avellaneda',
+      routing_distance_km: 2.1,
+      routing_status: 'resolved',
+      routing_overridden: false,
       source_page: 'Cotizacion'
     }
   ],

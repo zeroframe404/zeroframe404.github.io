@@ -1,6 +1,6 @@
 import { apiRequest, readApiError } from './apiClient'
 
-export type SiniestroTipo = 'choque' | 'rotura' | 'robo'
+export type SiniestroTipo = 'choque' | 'rotura' | 'robo' | 'incendio'
 
 export type SiniestroFileGroup = {
   label: string
@@ -43,4 +43,3 @@ export async function submitSiniestroReport(input: {
     throw new Error(message)
   }
 }
-

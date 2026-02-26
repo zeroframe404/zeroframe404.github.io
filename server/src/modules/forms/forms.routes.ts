@@ -11,6 +11,7 @@ import {
   MAX_FILE_SIZE_BYTES,
   MAX_SINIESTRO_FILES
 } from '../../utils/validation/files.js'
+import { resolveCotizacionRouting } from './cotizacion-routing.service.js'
 
 const siniestroUpload = multer({
   storage: multer.memoryStorage(),
@@ -20,8 +21,8 @@ const siniestroUpload = multer({
   }
 })
 
-const siniestroTypes = new Set(['choque', 'rotura', 'robo'] as const)
-type SiniestroType = 'choque' | 'rotura' | 'robo'
+const siniestroTypes = new Set(['choque', 'rotura', 'robo', 'incendio'] as const)
+type SiniestroType = 'choque' | 'rotura' | 'robo' | 'incendio'
 
 function parseOptionalBoolean(value: unknown) {
   if (typeof value === 'boolean') {
@@ -90,6 +91,11 @@ formsRouter.post('/cotizaciones', async (req, res) => {
     return
   }
 
+  const codigoPostal = asOptionalString(req.body?.codigo_postal) ?? null
+  const routingResolution = await resolveCotizacionRouting({
+    codigoPostal
+  })
+
   const inserted = await prisma.cotizacion.create({
     data: {
       nombre: asString(req.body?.nombre),
@@ -99,18 +105,29 @@ formsRouter.post('/cotizaciones', async (req, res) => {
       marcaModelo: asOptionalString(req.body?.marca_modelo) ?? null,
       anio: asOptionalString(req.body?.anio) ?? null,
       localidad: asOptionalString(req.body?.localidad) ?? null,
-      codigoPostal: asOptionalString(req.body?.codigo_postal) ?? null,
+      codigoPostal,
       uso: asOptionalString(req.body?.uso) ?? null,
       coberturaDeseada: asOptionalString(req.body?.cobertura_deseada) ?? null,
       mensaje: asOptionalString(req.body?.mensaje) ?? null,
       consentimiento,
-      sourcePage: asString(req.body?.source_page) || 'Cotizacion'
+      sourcePage: asString(req.body?.source_page) || 'Cotizacion',
+      routingBranch: routingResolution.routingBranch,
+      routingDistanceKm: routingResolution.routingDistanceKm,
+      routingPostalCodeNormalized: routingResolution.routingPostalCodeNormalized,
+      routingLatitude: routingResolution.routingLatitude,
+      routingLongitude: routingResolution.routingLongitude,
+      routingProvider: routingResolution.routingProvider,
+      routingStatus: routingResolution.routingStatus
     }
   })
 
   res.status(201).json({
     ok: true,
-    id: inserted.id
+    id: inserted.id,
+    routing_branch: routingResolution.routingBranch,
+    routing_distance_km: routingResolution.routingDistanceKm,
+    routing_status: routingResolution.routingStatus,
+    redirect_url: routingResolution.redirectUrl
   })
 })
 

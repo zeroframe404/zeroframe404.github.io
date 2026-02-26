@@ -4,7 +4,12 @@ import {
   scryptSync,
   timingSafeEqual
 } from 'node:crypto'
-import { AdminLogAutoClearUnit as PrismaAdminLogAutoClearUnit, Prisma } from '@prisma/client'
+import {
+  AdminLogAutoClearUnit as PrismaAdminLogAutoClearUnit,
+  CotizacionRoutingBranch as PrismaCotizacionRoutingBranch,
+  AdminUserBranch as PrismaAdminUserBranch,
+  Prisma
+} from '@prisma/client'
 import { env } from '../../config/env.js'
 import { normalizeLimit } from '../../utils/validation/common.js'
 import { prisma } from '../db/prisma.js'
@@ -18,6 +23,9 @@ import type {
   AdminDashboardResponse,
   AdminLeadRow,
   AdminPermissionMap,
+  CotizacionRoutingBranch,
+  CotizacionRoutingStatus,
+  AdminUserBranch,
   AdminRoleRow,
   AdminSessionContext,
   AdminSessionUser,
@@ -190,6 +198,7 @@ function mapAdminUserToRow(user: AdminUserWithRole): AdminUserRow {
     username: user.username,
     is_super_admin: user.isSuperAdmin,
     is_active: user.isActive,
+    branch: user.branch as AdminUserBranch,
     role_id: user.roleId,
     role_name: user.role?.name ?? null,
     created_at: user.createdAt.toISOString(),
@@ -259,9 +268,14 @@ function mapCotizacionToAdminRow(cotizacion: {
   marcaModelo: string | null
   anio: string | null
   localidad: string | null
+  codigoPostal: string | null
   uso: string | null
   coberturaDeseada: string | null
   mensaje: string | null
+  routingBranch: string
+  routingDistanceKm: number | null
+  routingStatus: string
+  routingOverridden: boolean
   sourcePage: string
 }): AdminLeadRow {
   return {
@@ -275,10 +289,15 @@ function mapCotizacionToAdminRow(cotizacion: {
     marca_modelo: cotizacion.marcaModelo,
     anio: cotizacion.anio,
     localidad: cotizacion.localidad,
+    codigo_postal: cotizacion.codigoPostal,
     uso: cotizacion.uso,
     cobertura_deseada: cotizacion.coberturaDeseada,
     motivo_contacto: 'cotizacion',
     mensaje: cotizacion.mensaje,
+    routing_branch: cotizacion.routingBranch as CotizacionRoutingBranch,
+    routing_distance_km: cotizacion.routingDistanceKm,
+    routing_status: cotizacion.routingStatus as CotizacionRoutingStatus,
+    routing_overridden: cotizacion.routingOverridden,
     source_page: cotizacion.sourcePage
   }
 }
@@ -303,12 +322,17 @@ function mapSiniestroToAdminRow(siniestro: {
     marca_modelo: null,
     anio: null,
     localidad: null,
+    codigo_postal: null,
     uso: null,
     cobertura_deseada: null,
     motivo_contacto: 'siniestro',
     mensaje:
       siniestro.detalleTexto ??
       (siniestro.payloadJson ? JSON.stringify(siniestro.payloadJson) : null),
+    routing_branch: null,
+    routing_distance_km: null,
+    routing_status: null,
+    routing_overridden: false,
     source_page: siniestro.sourcePage
   }
 }
@@ -639,6 +663,43 @@ export async function deleteCotizacionById(cotizacionId: string) {
   return result.count > 0
 }
 
+export async function overrideCotizacionRouting(input: {
+  cotizacionId: string
+  routingBranch: CotizacionRoutingBranch
+  reason: string | null
+  actorUserId: string
+}) {
+  const existingCotizacion = await prisma.cotizacion.findUnique({
+    where: {
+      id: input.cotizacionId
+    }
+  })
+
+  if (!existingCotizacion) {
+    return null
+  }
+
+  const previous = mapCotizacionToAdminRow(existingCotizacion)
+
+  const updatedCotizacion = await prisma.cotizacion.update({
+    where: {
+      id: input.cotizacionId
+    },
+    data: {
+      routingBranch: input.routingBranch as PrismaCotizacionRoutingBranch,
+      routingOverridden: true,
+      routingOverriddenByUserId: input.actorUserId,
+      routingOverriddenAt: new Date(),
+      routingOverrideReason: input.reason && input.reason.trim() ? input.reason.trim() : null
+    }
+  })
+
+  return {
+    previous,
+    current: mapCotizacionToAdminRow(updatedCotizacion)
+  }
+}
+
 export async function deleteSiniestroById(siniestroId: string) {
   const result = await prisma.siniestro.deleteMany({
     where: { id: siniestroId }
@@ -726,6 +787,7 @@ export async function createAdminUser(input: {
   username: string
   password: string
   roleId: string | null
+  branch: AdminUserBranch
 }): Promise<AdminUserRow> {
   await ensureRootAdminUser()
 
@@ -754,6 +816,7 @@ export async function createAdminUser(input: {
       passwordHash: hashPassword(password),
       isSuperAdmin: false,
       isActive: true,
+      branch: input.branch as PrismaAdminUserBranch,
       roleId: input.roleId
     },
     include: {
@@ -770,6 +833,7 @@ export async function updateAdminUser(input: {
   password?: string
   roleId?: string | null
   isActive?: boolean
+  branch?: AdminUserBranch
 }) {
   const user = await prisma.adminUser.findUnique({
     where: { id: input.userId }
@@ -817,6 +881,10 @@ export async function updateAdminUser(input: {
 
   if (typeof input.isActive === 'boolean') {
     updateData.isActive = input.isActive
+  }
+
+  if (input.branch !== undefined) {
+    updateData.branch = input.branch as PrismaAdminUserBranch
   }
 
   if (Object.keys(updateData).length === 0) {

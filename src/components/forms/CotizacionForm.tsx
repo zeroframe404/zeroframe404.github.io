@@ -210,7 +210,12 @@ export default function CotizacionForm({
         source_page: sourcePage
       }
 
-      await insertLead(payload)
+      const response = await insertLead(payload)
+
+      if (response?.redirect_url) {
+        window.location.assign(response.redirect_url)
+        return
+      }
 
       setSubmitted(true)
       setValues(buildInitialValues(insuranceType))

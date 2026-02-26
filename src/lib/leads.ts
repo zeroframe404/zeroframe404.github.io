@@ -1,4 +1,4 @@
-import type { LeadPayload } from '../types/lead'
+import type { LeadInsertResponse, LeadPayload } from '../types/lead'
 import { apiRequest, readApiError } from './apiClient'
 
 function resolveLeadEndpoint(payload: LeadPayload) {
@@ -25,5 +25,16 @@ export async function insertLead(payload: LeadPayload) {
     )
     throw new Error(message)
   }
-}
 
+  const data = (await response.json()) as unknown
+  if (
+    typeof data !== 'object' ||
+    data === null ||
+    typeof (data as { ok?: unknown }).ok !== 'boolean' ||
+    typeof (data as { id?: unknown }).id !== 'string'
+  ) {
+    throw new Error('La respuesta del formulario no es valida.')
+  }
+
+  return data as LeadInsertResponse
+}

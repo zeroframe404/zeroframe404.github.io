@@ -6,7 +6,7 @@ Sitio comercial + backend propio para cotizaciones, contacto, siniestros y dashb
 
 - Frontend: React + Vite + TypeScript + Tailwind
 - Backend: Node.js + Express + TypeScript
-- Base de datos: PostgreSQL + Prisma
+- Base de datos: PostgreSQL + PostGIS + Prisma
 - Archivos siniestros: PostgreSQL (`bytea`) y opcional AWS S3
 - Tests: Vitest + Testing Library
 
@@ -29,6 +29,8 @@ Variables clave:
   - `VITE_DEV_API_TARGET` (default: `http://localhost:8787`)
 - Backend:
   - `DATABASE_URL`
+  - `GOOGLE_GEOCODING_API_KEY`
+  - `ROUTING_DISTANCE_THRESHOLD_KM` (default: `20`)
   - `ADMIN_ROOT_USERNAME` (default: `Daniel`)
   - `ADMIN_ROOT_PASSWORD` (default: `DockSud1945!#!`)
   - `ADMIN_DASHBOARD_PASSWORD` (legacy opcional)
@@ -109,7 +111,7 @@ docker compose restart nginx
 Notas:
 
 - Nginx público enruta `/` al frontend y `/api` al backend.
-- El backend ejecuta `prisma db push` al iniciar para asegurar esquema en PostgreSQL.
+- El backend ejecuta `prisma migrate deploy` al iniciar para aplicar migraciones en PostgreSQL.
 - Si usas HTTPS, mantener `NODE_ENV=production` y revisar `ADMIN_COOKIE_SAME_SITE` según tu flujo.
 
 ## Deploy en Render (frontend + backend separados)
@@ -147,6 +149,13 @@ npm run prisma:migrate
 npm run prisma:generate
 ```
 
+Backfill de sucursal derivada para cotizaciones:
+
+```bash
+npm run backfill:cotizacion-routing
+npm run backfill:cotizacion-routing -- --force
+```
+
 Schema principal: `server/prisma/schema.prisma`.
 
 ## Build
@@ -178,6 +187,7 @@ npm run start:server
 - `POST /api/admin/roles`
 - `POST /api/admin/users`
 - `PATCH /api/admin/users/:userId/role`
+- `PATCH /api/admin/cotizaciones/:cotizacionId/routing`
 - `GET /api/admin/activities?limit=200`
 
 ## Admin oculto

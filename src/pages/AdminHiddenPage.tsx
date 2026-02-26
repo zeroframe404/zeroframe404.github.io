@@ -1,4 +1,4 @@
-﻿import { Download, Eye, Loader2, LogOut, RefreshCcw, ShieldCheck, Trash2, UserCog, X } from 'lucide-react'
+﻿import { Download, Eye, Loader2, LogOut, Paperclip, RefreshCcw, ShieldCheck, Trash2, UserCog, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
@@ -17,6 +17,7 @@ import {
   loginAdmin,
   logoutAdmin,
   trackAdminView,
+  updateAdminCotizacionRouting,
   updateAdminLogSettings as updateAdminLogSettingsApi,
   updateAdminRole,
   updateAdminUser,
@@ -30,10 +31,14 @@ import type {
   AdminLogAutoClearUnit,
   AdminLogSettingsRow,
   AdminPermissionMap,
+  CotizacionRoutingBranch,
+  CotizacionRoutingStatus,
+  AdminUserBranch,
   AdminRoleRow,
   AdminSiniestroArchivo,
   AdminUserRow
 } from '../types/admin'
+import AdminTasksModal from '../components/admin/AdminTasksModal'
 
 type AdminSection = 'cotizaciones' | 'siniestros'
 
@@ -81,6 +86,40 @@ function permissionLabel(permission: keyof AdminPermissionMap) {
   return 'Borrar siniestros'
 }
 
+const USER_BRANCH_OPTIONS: Array<{
+  value: AdminUserBranch
+  label: string
+}> = [
+  { value: 'lanus', label: 'Lanus' },
+  { value: 'avellaneda', label: 'Avellaneda' },
+  { value: 'online', label: 'Online' }
+]
+
+function branchLabel(branch: AdminUserBranch) {
+  return USER_BRANCH_OPTIONS.find((option) => option.value === branch)?.label ?? branch
+}
+
+const COTIZACION_ROUTING_OPTIONS: Array<{
+  value: CotizacionRoutingBranch
+  label: string
+}> = [
+  { value: 'avellaneda', label: 'Avellaneda' },
+  { value: 'lanus', label: 'Lanus' },
+  { value: 'lejanos', label: 'Lejanos' }
+]
+
+function cotizacionRoutingLabel(branch: CotizacionRoutingBranch | null) {
+  if (!branch) return '-'
+  return COTIZACION_ROUTING_OPTIONS.find((option) => option.value === branch)?.label ?? branch
+}
+
+function cotizacionRoutingStatusLabel(status: CotizacionRoutingStatus | null) {
+  if (!status) return '-'
+  if (status === 'resolved') return 'Resuelto'
+  if (status === 'fallback_invalid_cp') return 'CP invalido'
+  return 'Fallo geocoding'
+}
+
 export default function AdminHiddenPage() {
   const [usernameInput, setUsernameInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
@@ -90,8 +129,15 @@ export default function AdminHiddenPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [cotizacionRoutingFilter, setCotizacionRoutingFilter] = useState<
+    'all' | CotizacionRoutingBranch
+  >('all')
 
   const [selectedLead, setSelectedLead] = useState<AdminLeadRow | null>(null)
+  const [routingOverrideBranch, setRoutingOverrideBranch] =
+    useState<CotizacionRoutingBranch>('lejanos')
+  const [routingOverrideReason, setRoutingOverrideReason] = useState('')
+  const [isSavingRoutingOverride, setIsSavingRoutingOverride] = useState(false)
   const [selectedSiniestroLead, setSelectedSiniestroLead] = useState<AdminLeadRow | null>(null)
   const [siniestroFiles, setSiniestroFiles] = useState<AdminSiniestroArchivo[]>([])
   const [filesError, setFilesError] = useState<string | null>(null)
@@ -109,6 +155,7 @@ export default function AdminHiddenPage() {
   const [newUserName, setNewUserName] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRoleId, setNewUserRoleId] = useState<string | null>(null)
+  const [newUserBranch, setNewUserBranch] = useState<AdminUserBranch>('online')
   const [isSavingRole, setIsSavingRole] = useState(false)
   const [isSavingUser, setIsSavingUser] = useState(false)
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
@@ -120,6 +167,7 @@ export default function AdminHiddenPage() {
   const [isSavingSuperAdmin, setIsSavingSuperAdmin] = useState(false)
 
   const [isActivitiesModalOpen, setIsActivitiesModalOpen] = useState(false)
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false)
   const [activities, setActivities] = useState<AdminActivityRow[]>([])
   const [activitiesError, setActivitiesError] = useState<string | null>(null)
   const [isLoadingActivities, setIsLoadingActivities] = useState(false)
@@ -175,10 +223,35 @@ export default function AdminHiddenPage() {
     }
   }, [activeSection, availableSections])
 
+  useEffect(() => {
+    if (activeSection !== 'cotizaciones') {
+      setCotizacionRoutingFilter('all')
+    }
+  }, [activeSection])
+
+  useEffect(() => {
+    if (selectedLead?.tipo_formulario !== 'cotizacion') {
+      setRoutingOverrideBranch('lejanos')
+      setRoutingOverrideReason('')
+      return
+    }
+
+    setRoutingOverrideBranch(selectedLead.routing_branch ?? 'lejanos')
+    setRoutingOverrideReason('')
+  }, [selectedLead])
+
   const activeRows = useMemo(() => {
     if (!dashboardData) return []
     return activeSection === 'cotizaciones' ? dashboardData.cotizaciones : dashboardData.siniestros
   }, [activeSection, dashboardData])
+
+  const filteredActiveRows = useMemo(() => {
+    if (activeSection !== 'cotizaciones' || cotizacionRoutingFilter === 'all') {
+      return activeRows
+    }
+
+    return activeRows.filter((lead) => lead.routing_branch === cotizacionRoutingFilter)
+  }, [activeRows, activeSection, cotizacionRoutingFilter])
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -237,7 +310,11 @@ export default function AdminHiddenPage() {
     setIsAuthenticated(false)
     setDashboardData(null)
     setError(null)
+    setCotizacionRoutingFilter('all')
     setSelectedLead(null)
+    setRoutingOverrideBranch('lejanos')
+    setRoutingOverrideReason('')
+    setIsSavingRoutingOverride(false)
     setSelectedSiniestroLead(null)
     setSiniestroFiles([])
     setFilesError(null)
@@ -252,6 +329,7 @@ export default function AdminHiddenPage() {
     setSuperAdminUsernameInput('')
     setSuperAdminPasswordInput('')
     setIsActivitiesModalOpen(false)
+    setIsTasksModalOpen(false)
     setActivities([])
     setActivitiesError(null)
     setActivityFilters({ ...DEFAULT_ACTIVITY_FILTERS })
@@ -471,10 +549,12 @@ export default function AdminHiddenPage() {
       await createAdminUser({
         username,
         password,
-        roleId: newUserRoleId
+        roleId: newUserRoleId,
+        branch: newUserBranch
       })
       setNewUserName('')
       setNewUserPassword('')
+      setNewUserBranch('online')
       await loadAccessData()
     } catch (caughtError) {
       setAccessError(caughtError instanceof Error ? caughtError.message : 'No se pudo crear el usuario.')
@@ -495,6 +575,60 @@ export default function AdminHiddenPage() {
       await loadAccessData()
     } catch (caughtError) {
       setAccessError(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar el rol.')
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
+  const saveCotizacionRoutingOverride = async () => {
+    if (!selectedLead || selectedLead.tipo_formulario !== 'cotizacion') {
+      return
+    }
+
+    setIsSavingRoutingOverride(true)
+    setError(null)
+
+    try {
+      const updatedCotizacion = await updateAdminCotizacionRouting({
+        cotizacionId: selectedLead.id,
+        routingBranch: routingOverrideBranch,
+        reason: routingOverrideReason.trim() || undefined
+      })
+
+      setSelectedLead(updatedCotizacion)
+      setDashboardData((previous) => {
+        if (!previous) return previous
+
+        return {
+          ...previous,
+          cotizaciones: previous.cotizaciones.map((row) =>
+            row.id === updatedCotizacion.id ? updatedCotizacion : row
+          )
+        }
+      })
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'No se pudo actualizar la sucursal derivada.'
+      )
+    } finally {
+      setIsSavingRoutingOverride(false)
+    }
+  }
+
+  const changeUserBranch = async (userId: string, branch: AdminUserBranch) => {
+    setUpdatingUserId(userId)
+    setAccessError(null)
+
+    try {
+      await updateAdminUser({
+        userId,
+        branch
+      })
+      await loadAccessData()
+    } catch (caughtError) {
+      setAccessError(caughtError instanceof Error ? caughtError.message : 'No se pudo actualizar la sucursal.')
     } finally {
       setUpdatingUserId(null)
     }
@@ -587,6 +721,20 @@ export default function AdminHiddenPage() {
       return
     }
 
+    const nextBranchRaw = window.prompt(
+      'Sucursal (lanus, avellaneda, online):',
+      user.branch
+    )
+    if (nextBranchRaw === null) {
+      return
+    }
+
+    const normalizedBranch = nextBranchRaw.trim().toLowerCase()
+    if (!USER_BRANCH_OPTIONS.some((option) => option.value === normalizedBranch)) {
+      setAccessError('La sucursal debe ser lanus, avellaneda u online.')
+      return
+    }
+
     const keepActive = window.confirm(
       `Aceptar para dejar el usuario "${nextUsername || user.username}" activo.`
     )
@@ -600,7 +748,8 @@ export default function AdminHiddenPage() {
         username: nextUsername,
         password: nextPassword || undefined,
         roleId: nextRoleRaw.trim() ? nextRoleRaw.trim() : null,
-        isActive: keepActive
+        isActive: keepActive,
+        branch: normalizedBranch as AdminUserBranch
       })
       await loadAccessData()
     } catch (caughtError) {
@@ -825,6 +974,10 @@ export default function AdminHiddenPage() {
                   <Eye className="mr-2 h-4 w-4" />Ver Actividades
                 </button>
               )}
+              <button type="button" className="btn-outline" onClick={() => setIsTasksModalOpen(true)}>
+                <Paperclip className="mr-2 h-4 w-4" />
+                {dashboardData.current_user.is_super_admin ? 'Asignar tareas' : 'Tareas'}
+              </button>
               <button type="button" className="btn-outline" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />Cerrar sesion
               </button>
@@ -862,7 +1015,32 @@ export default function AdminHiddenPage() {
                 )}
               </div>
 
-              <p className="text-sm text-slate-600">Mostrando {activeRows.length} registro(s) de {activeSection}.</p>
+              <div className="flex flex-wrap items-center gap-3">
+                {activeSection === 'cotizaciones' && (
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Sucursal derivada
+                    <select
+                      value={cotizacionRoutingFilter}
+                      onChange={(event) =>
+                        setCotizacionRoutingFilter(
+                          event.target.value as 'all' | CotizacionRoutingBranch
+                        )
+                      }
+                      className="input-base mt-1 w-full border-slate-300 bg-white text-slate-900 sm:w-48"
+                    >
+                      <option value="all">Todas</option>
+                      {COTIZACION_ROUTING_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <p className="text-sm text-slate-600">
+                  Mostrando {filteredActiveRows.length} registro(s) de {activeSection}.
+                </p>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -873,16 +1051,22 @@ export default function AdminHiddenPage() {
                     <th className="px-3 py-2 font-semibold">Nombre</th>
                     <th className="px-3 py-2 font-semibold">Contacto</th>
                     <th className="px-3 py-2 font-semibold">Origen</th>
+                    <th className="px-3 py-2 font-semibold">Sucursal derivada</th>
                     <th className="px-3 py-2 font-semibold">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {activeRows.map((lead) => (
+                  {filteredActiveRows.map((lead) => (
                     <tr key={lead.id} className="border-b border-slate-100 align-top">
                       <td className="px-3 py-3 text-slate-700">{formatDateTime(lead.created_at)}</td>
                       <td className="px-3 py-3 text-slate-900">{lead.nombre || '-'}</td>
                       <td className="px-3 py-3 text-slate-700">{lead.telefono || '-'}<div className="text-xs text-slate-500">{lead.email || '-'}</div></td>
                       <td className="px-3 py-3 text-slate-700">{lead.source_page || '-'}</td>
+                      <td className="px-3 py-3 text-slate-700">
+                        {lead.tipo_formulario === 'cotizacion'
+                          ? cotizacionRoutingLabel(lead.routing_branch)
+                          : '-'}
+                      </td>
                       <td className="px-3 py-3 text-slate-700">
                         <div className="flex flex-wrap gap-2">
                           <button type="button" className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" onClick={() => openLeadDetail(activeSection, lead)}>Ver</button>
@@ -919,8 +1103,89 @@ export default function AdminHiddenPage() {
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha</dt><dd className="mt-1 text-sm text-slate-800">{formatDateTime(selectedLead.created_at)}</dd></div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.nombre || '-'}</dd></div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Telefono</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.telefono || '-'}</dd></div>
+              {selectedLead.tipo_formulario === 'cotizacion' && (
+                <>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Codigo postal</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.codigo_postal || '-'}</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sucursal derivada</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{cotizacionRoutingLabel(selectedLead.routing_branch)}</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Distancia</dt>
+                    <dd className="mt-1 text-sm text-slate-800">
+                      {selectedLead.routing_distance_km === null
+                        ? '-'
+                        : `${selectedLead.routing_distance_km.toFixed(2)} km`}
+                    </dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado de ruteo</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{cotizacionRoutingStatusLabel(selectedLead.routing_status)}</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Override manual</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.routing_overridden ? 'Si' : 'No'}</dd>
+                  </div>
+                </>
+              )}
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:col-span-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mensaje</dt><dd className="mt-1 text-sm text-slate-800 whitespace-pre-wrap">{selectedLead.mensaje || '-'}</dd></div>
             </dl>
+            {selectedLead.tipo_formulario === 'cotizacion' && permissions.can_delete_cotizaciones && (
+              <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                  Override manual de sucursal
+                </h3>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Sucursal
+                    <select
+                      value={routingOverrideBranch}
+                      onChange={(event) =>
+                        setRoutingOverrideBranch(event.target.value as CotizacionRoutingBranch)
+                      }
+                      className="input-base mt-1 w-full border-slate-300 bg-white text-slate-900"
+                      disabled={isSavingRoutingOverride}
+                    >
+                      {COTIZACION_ROUTING_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Motivo (opcional)
+                    <input
+                      type="text"
+                      value={routingOverrideReason}
+                      onChange={(event) => setRoutingOverrideReason(event.target.value)}
+                      className="input-base mt-1 w-full border-slate-300 bg-white text-slate-900"
+                      disabled={isSavingRoutingOverride}
+                    />
+                  </label>
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    className="btn-outline"
+                    disabled={isSavingRoutingOverride}
+                    onClick={() => { void saveCotizacionRoutingOverride() }}
+                  >
+                    {isSavingRoutingOverride ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      'Guardar override'
+                    )}
+                  </button>
+                </div>
+              </section>
+            )}
           </div>
         </div>
       )}
@@ -1039,11 +1304,18 @@ export default function AdminHiddenPage() {
                     <option value="">Sin rol</option>
                     {accessData?.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
                   </select>
+                  <select value={newUserBranch} onChange={(event) => setNewUserBranch(event.target.value as AdminUserBranch)} className="input-base w-full border-slate-300 bg-white text-slate-900">
+                    {USER_BRANCH_OPTIONS.map((branchOption) => (
+                      <option key={branchOption.value} value={branchOption.value}>
+                        {branchOption.label}
+                      </option>
+                    ))}
+                  </select>
                   <button type="submit" className="btn-primary" disabled={isSavingUser}>{isSavingUser ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creando usuario...</> : 'Crear usuario'}</button>
                 </form>
                 <div className="mt-4 overflow-x-auto">
                   <table className="min-w-full border-collapse text-sm">
-                    <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th className="px-2 py-2">Usuario</th><th className="px-2 py-2">Rol</th><th className="px-2 py-2">Activo</th><th className="px-2 py-2">Acciones</th></tr></thead>
+                    <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th className="px-2 py-2">Usuario</th><th className="px-2 py-2">Rol</th><th className="px-2 py-2">Sucursal</th><th className="px-2 py-2">Activo</th><th className="px-2 py-2">Acciones</th></tr></thead>
                     <tbody>
                       {accessData?.users.map((user) => (
                         <tr key={user.id} className="border-b border-slate-100 align-top">
@@ -1056,6 +1328,27 @@ export default function AdminHiddenPage() {
                                 <select value={user.role_id ?? ''} className="input-base border-slate-300 bg-white text-slate-900" onChange={(event) => { void changeUserRole(user.id, event.target.value || null) }} disabled={updatingUserId === user.id}>
                                   <option value="">Sin rol</option>
                                   {accessData?.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+                                </select>
+                                {updatingUserId === user.id && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-2 py-2 text-slate-700">
+                            {user.is_super_admin ? (
+                              <span>{branchLabel(user.branch)}</span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={user.branch}
+                                  className="input-base border-slate-300 bg-white text-slate-900"
+                                  onChange={(event) => { void changeUserBranch(user.id, event.target.value as AdminUserBranch) }}
+                                  disabled={updatingUserId === user.id}
+                                >
+                                  {USER_BRANCH_OPTIONS.map((branchOption) => (
+                                    <option key={branchOption.value} value={branchOption.value}>
+                                      {branchOption.label}
+                                    </option>
+                                  ))}
                                 </select>
                                 {updatingUserId === user.id && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
                               </div>
@@ -1263,6 +1556,15 @@ export default function AdminHiddenPage() {
           </div>
         </div>
       )}
+
+      <AdminTasksModal
+        isOpen={isTasksModalOpen}
+        onClose={() => setIsTasksModalOpen(false)}
+        currentUser={dashboardData.current_user}
+      />
     </div>
   )
 }
+
+
+

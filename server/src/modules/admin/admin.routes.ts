@@ -1,5 +1,6 @@
 ﻿import { Router } from 'express'
 import { Prisma } from '@prisma/client'
+import multer from 'multer'
 import { env, isProduction } from '../../config/env.js'
 import { authAdmin } from '../../middleware/authAdmin.js'
 import { createRateLimitMiddleware } from '../../middleware/rateLimit.js'
@@ -22,6 +23,7 @@ import {
   getAdminDashboard,
   getSiniestroArchivoContent,
   getSiniestroArchivos,
+  overrideCotizacionRouting,
   registerAdminActivity,
   revokeAdminSession,
   updateAdminLogSettings,
@@ -30,9 +32,22 @@ import {
   updateSuperAdminCredentials,
   validateAdminCredentials
 } from './admin.service.js'
+import {
+  createAdminTask,
+  createAdminTaskMessage,
+  deleteAdminTask,
+  getAdminTaskAssignees,
+  getAdminTaskAttachmentContent,
+  getAdminTaskDetail,
+  getAdminTaskMessageAttachmentContent,
+  listAdminTasks,
+  setAdminTaskStatus
+} from '../tasks/tasks.service.js'
 import type {
   AdminLogAutoClearUnit,
   AdminPermissionMap,
+  CotizacionRoutingBranch,
+  AdminUserBranch,
   AdminSessionContext
 } from './admin.types.js'
 
@@ -41,6 +56,10 @@ export const adminRouter = Router()
 const loginRateLimit = createRateLimitMiddleware({
   limit: 8,
   windowMs: 60_000
+})
+
+const taskUpload = multer({
+  storage: multer.memoryStorage()
 })
 
 function getSessionCookieOptions(maxAgeMs: number) {
@@ -88,6 +107,14 @@ function isAutoClearUnit(value: unknown): value is AdminLogAutoClearUnit {
   return value === 'day' || value === 'week' || value === 'month'
 }
 
+function isUserBranch(value: unknown): value is AdminUserBranch {
+  return value === 'lanus' || value === 'avellaneda' || value === 'online'
+}
+
+function isCotizacionRoutingBranch(value: unknown): value is CotizacionRoutingBranch {
+  return value === 'avellaneda' || value === 'lanus' || value === 'lejanos'
+}
+
 function parseOptionalBoolean(value: unknown) {
   if (typeof value === 'boolean') {
     return value
@@ -104,6 +131,66 @@ function parseOptionalBoolean(value: unknown) {
   }
 
   return undefined
+}
+
+function parseStringList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => asString(item))
+      .filter((item) => item.length > 0)
+  }
+
+  const asSingleString = asString(value)
+  if (!asSingleString) {
+    return []
+  }
+
+  if (asSingleString.startsWith('[') && asSingleString.endsWith(']')) {
+    try {
+      const parsedJson = JSON.parse(asSingleString)
+      if (Array.isArray(parsedJson)) {
+        return parsedJson
+          .map((item) => asString(item))
+          .filter((item) => item.length > 0)
+      }
+    } catch {
+      // ignore malformed json and fallback to comma-separated parsing
+    }
+  }
+
+  return asSingleString
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+}
+
+function parseTaskStatusFilter(rawStatus: unknown) {
+  const status = asString(rawStatus).toLowerCase()
+  if (status === 'pending' || status === 'completed') {
+    return status
+  }
+
+  return undefined
+}
+
+function parseUploadedFiles(files: unknown) {
+  if (!Array.isArray(files)) {
+    return []
+  }
+
+  return files.filter((file): file is Express.Multer.File => {
+    if (typeof file !== 'object' || file === null) {
+      return false
+    }
+
+    const record = file as Record<string, unknown>
+    return (
+      typeof record.originalname === 'string' &&
+      typeof record.mimetype === 'string' &&
+      typeof record.size === 'number' &&
+      Buffer.isBuffer(record.buffer)
+    )
+  })
 }
 
 function parseDateFilter(input: unknown, endOfDay = false) {
@@ -252,6 +339,346 @@ adminRouter.get('/dashboard', authAdmin, async (req, res) => {
   res.status(200).json(payload)
 })
 
+adminRouter.get('/task-assignees', authAdmin, async (req, res) => {
+  const currentSession = getSessionOrFail(req, res)
+  if (!currentSession) {
+    return
+  }
+
+  try {
+    const assignees = await getAdminTaskAssignees(currentSession)
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(200).json({ assignees })
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(403).json({ error: error.message })
+      return
+    }
+
+    throw error
+  }
+})
+
+adminRouter.get('/tasks', authAdmin, async (req, res) => {
+  const currentSession = getSessionOrFail(req, res)
+  if (!currentSession) {
+    return
+  }
+
+  const status = parseTaskStatusFilter(req.query.status)
+  const payload = await listAdminTasks({
+    session: currentSession,
+    rawStatus: status,
+    rawLimit: req.query.limit
+  })
+
+  res.setHeader('Cache-Control', 'no-store')
+  res.status(200).json(payload)
+})
+
+adminRouter.post('/tasks', authAdmin, taskUpload.array('files'), async (req, res) => {
+  const currentSession = getSessionOrFail(req, res)
+  if (!currentSession) {
+    return
+  }
+
+  const descriptionMarkdown = asString(req.body?.description_markdown)
+  const assigneeUserIds = parseStringList(req.body?.assignee_user_ids)
+  const uploadedFiles = parseUploadedFiles(req.files)
+
+  try {
+    const task = await createAdminTask({
+      session: currentSession,
+      descriptionMarkdown,
+      assigneeUserIds,
+      files: uploadedFiles
+    })
+
+    await registerAdminActivity({
+      actorUserId: currentSession.user.id,
+      action: 'create_task',
+      section: 'tasks',
+      targetId: task.id,
+      description: 'Creo una nueva tarea para empleados.',
+      metadata: {
+        assignee_count: task.assignees.length,
+        attachment_count: task.attachments.length
+      }
+    })
+
+    res.status(201).json({ task })
+  } catch (error) {
+    if (error instanceof Error) {
+      const statusCode = currentSession.user.is_super_admin ? 400 : 403
+      res.status(statusCode).json({ error: error.message })
+      return
+    }
+
+    throw error
+  }
+})
+
+adminRouter.get('/tasks/:taskId', authAdmin, async (req, res) => {
+  const currentSession = getSessionOrFail(req, res)
+  if (!currentSession) {
+    return
+  }
+
+  const taskId = asString(req.params.taskId)
+  if (!taskId) {
+    res.status(400).json({ error: 'Tarea invalida.' })
+    return
+  }
+
+  const payload = await getAdminTaskDetail({
+    session: currentSession,
+    taskId,
+    rawMessageLimit: req.query.message_limit
+  })
+
+  if (!payload) {
+    res.status(404).json({ error: 'Tarea no encontrada.' })
+    return
+  }
+
+  res.setHeader('Cache-Control', 'no-store')
+  res.status(200).json(payload)
+})
+
+adminRouter.patch('/tasks/:taskId/status', authAdmin, async (req, res) => {
+  const currentSession = getSessionOrFail(req, res)
+  if (!currentSession) {
+    return
+  }
+
+  const taskId = asString(req.params.taskId)
+  const isCompleted = parseOptionalBoolean(req.body?.is_completed)
+
+  if (!taskId) {
+    res.status(400).json({ error: 'Tarea invalida.' })
+    return
+  }
+
+  if (typeof isCompleted !== 'boolean') {
+    res.status(400).json({ error: 'is_completed debe ser true o false.' })
+    return
+  }
+
+  try {
+    const task = await setAdminTaskStatus({
+      session: currentSession,
+      taskId,
+      isCompleted
+    })
+
+    if (!task) {
+      res.status(404).json({ error: 'Tarea no encontrada.' })
+      return
+    }
+
+    await registerAdminActivity({
+      actorUserId: currentSession.user.id,
+      action: isCompleted ? 'complete_task' : 'reopen_task',
+      section: 'tasks',
+      targetId: taskId,
+      description: isCompleted
+        ? 'Marco una tarea como completada.'
+        : 'Volvio una tarea a pendiente.'
+    })
+
+    res.status(200).json({ task })
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(403).json({ error: error.message })
+      return
+    }
+
+    throw error
+  }
+})
+
+adminRouter.delete('/tasks/:taskId', authAdmin, async (req, res) => {
+  const currentSession = getSessionOrFail(req, res)
+  if (!currentSession) {
+    return
+  }
+
+  const taskId = asString(req.params.taskId)
+  if (!taskId) {
+    res.status(400).json({ error: 'Tarea invalida.' })
+    return
+  }
+
+  try {
+    const deleted = await deleteAdminTask({
+      session: currentSession,
+      taskId
+    })
+
+    if (!deleted) {
+      res.status(404).json({ error: 'Tarea no encontrada.' })
+      return
+    }
+
+    await registerAdminActivity({
+      actorUserId: currentSession.user.id,
+      action: 'delete_task',
+      section: 'tasks',
+      targetId: taskId,
+      description: 'Elimino una tarea.'
+    })
+
+    res.status(200).json({ ok: true })
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(403).json({ error: error.message })
+      return
+    }
+
+    throw error
+  }
+})
+
+adminRouter.post(
+  '/tasks/:taskId/messages',
+  authAdmin,
+  taskUpload.array('files'),
+  async (req, res) => {
+    const currentSession = getSessionOrFail(req, res)
+    if (!currentSession) {
+      return
+    }
+
+    const taskId = asString(req.params.taskId)
+    if (!taskId) {
+      res.status(400).json({ error: 'Tarea invalida.' })
+      return
+    }
+
+    const bodyMarkdown = asString(req.body?.body_markdown)
+    const uploadedFiles = parseUploadedFiles(req.files)
+
+    try {
+      const message = await createAdminTaskMessage({
+        session: currentSession,
+        taskId,
+        bodyMarkdown,
+        files: uploadedFiles
+      })
+
+      if (!message) {
+        res.status(404).json({ error: 'Tarea no encontrada.' })
+        return
+      }
+
+      await registerAdminActivity({
+        actorUserId: currentSession.user.id,
+        action: 'task_chat_message',
+        section: 'tasks',
+        targetId: taskId,
+        description: 'Envio un mensaje en el chat de tareas.',
+        metadata: {
+          attachment_count: message.attachments.length
+        }
+      })
+
+      res.status(201).json({ message })
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message })
+        return
+      }
+
+      throw error
+    }
+  }
+)
+
+adminRouter.get('/tasks/:taskId/attachments/:fileId', authAdmin, async (req, res) => {
+  const currentSession = getSessionOrFail(req, res)
+  if (!currentSession) {
+    return
+  }
+
+  const taskId = asString(req.params.taskId)
+  const fileId = asString(req.params.fileId)
+  if (!taskId || !fileId) {
+    res.status(400).json({ error: 'Archivo invalido.' })
+    return
+  }
+
+  const file = await getAdminTaskAttachmentContent({
+    session: currentSession,
+    taskId,
+    fileId
+  })
+
+  if (!file) {
+    res.status(404).json({ error: 'Archivo no encontrado.' })
+    return
+  }
+
+  const isDownload = String(req.query.download ?? '') === '1'
+  const disposition = isDownload ? 'attachment' : 'inline'
+  const encodedName = encodeURIComponent(file.originalName)
+
+  res.setHeader('Cache-Control', 'no-store')
+  res.setHeader('Content-Type', file.mimeType)
+  res.setHeader('Content-Length', String(file.content.length))
+  res.setHeader(
+    'Content-Disposition',
+    `${disposition}; filename*=UTF-8''${encodedName}`
+  )
+
+  res.status(200).send(file.content)
+})
+
+adminRouter.get(
+  '/tasks/:taskId/messages/:messageId/attachments/:fileId',
+  authAdmin,
+  async (req, res) => {
+    const currentSession = getSessionOrFail(req, res)
+    if (!currentSession) {
+      return
+    }
+
+    const taskId = asString(req.params.taskId)
+    const messageId = asString(req.params.messageId)
+    const fileId = asString(req.params.fileId)
+
+    if (!taskId || !messageId || !fileId) {
+      res.status(400).json({ error: 'Archivo invalido.' })
+      return
+    }
+
+    const file = await getAdminTaskMessageAttachmentContent({
+      session: currentSession,
+      taskId,
+      messageId,
+      fileId
+    })
+
+    if (!file) {
+      res.status(404).json({ error: 'Archivo no encontrado.' })
+      return
+    }
+
+    const isDownload = String(req.query.download ?? '') === '1'
+    const disposition = isDownload ? 'attachment' : 'inline'
+    const encodedName = encodeURIComponent(file.originalName)
+
+    res.setHeader('Cache-Control', 'no-store')
+    res.setHeader('Content-Type', file.mimeType)
+    res.setHeader('Content-Length', String(file.content.length))
+    res.setHeader(
+      'Content-Disposition',
+      `${disposition}; filename*=UTF-8''${encodedName}`
+    )
+
+    res.status(200).send(file.content)
+  }
+)
+
 adminRouter.post('/track-view', authAdmin, async (req, res) => {
   const currentSession = getSessionOrFail(req, res)
   if (!currentSession) {
@@ -381,6 +808,59 @@ adminRouter.get('/siniestros/:siniestroId/archivos/:fileId', authAdmin, async (r
   )
 
   res.status(200).send(file.content)
+})
+
+adminRouter.patch('/cotizaciones/:cotizacionId/routing', authAdmin, async (req, res) => {
+  const currentSession = getSessionOrFail(req, res)
+  if (!currentSession) {
+    return
+  }
+
+  if (!requirePermission(currentSession, 'can_delete_cotizaciones', res)) {
+    return
+  }
+
+  const cotizacionId = asString(req.params.cotizacionId)
+  if (!cotizacionId) {
+    res.status(400).json({ error: 'Cotizacion invalida.' })
+    return
+  }
+
+  const routingBranchRaw = asString(req.body?.routing_branch).toLowerCase()
+  if (!isCotizacionRoutingBranch(routingBranchRaw)) {
+    res.status(400).json({ error: 'La sucursal debe ser avellaneda, lanus o lejanos.' })
+    return
+  }
+
+  const reason = asString(req.body?.reason) || null
+  const updated = await overrideCotizacionRouting({
+    cotizacionId,
+    routingBranch: routingBranchRaw,
+    reason,
+    actorUserId: currentSession.user.id
+  })
+
+  if (!updated) {
+    res.status(404).json({ error: 'Cotizacion no encontrada.' })
+    return
+  }
+
+  await registerAdminActivity({
+    actorUserId: currentSession.user.id,
+    action: 'override_cotizacion_routing',
+    section: 'cotizaciones',
+    targetId: cotizacionId,
+    description: 'Actualizo manualmente la sucursal derivada de una cotizacion.',
+    metadata: {
+      previous_branch: updated.previous.routing_branch,
+      next_branch: updated.current.routing_branch,
+      previous_distance_km: updated.previous.routing_distance_km,
+      next_distance_km: updated.current.routing_distance_km,
+      reason: reason || null
+    }
+  })
+
+  res.status(200).json({ cotizacion: updated.current })
 })
 
 adminRouter.delete('/cotizaciones/:cotizacionId', authAdmin, async (req, res) => {
@@ -631,7 +1111,13 @@ adminRouter.post('/users', authAdmin, async (req, res) => {
   const username = asString(req.body?.username)
   const password = asString(req.body?.password)
   const roleIdRaw = req.body?.role_id
+  const branchRaw = asString(req.body?.branch)
   const roleId = roleIdRaw === null ? null : asString(roleIdRaw) || null
+
+  if (!isUserBranch(branchRaw)) {
+    res.status(400).json({ error: 'La sucursal debe ser lanus, avellaneda u online.' })
+    return
+  }
 
   if (!username || !password) {
     res.status(400).json({ error: 'El usuario y la contrasena son obligatorios.' })
@@ -642,7 +1128,8 @@ adminRouter.post('/users', authAdmin, async (req, res) => {
     const user = await createAdminUser({
       username,
       password,
-      roleId
+      roleId,
+      branch: branchRaw
     })
 
     await registerAdminActivity({
@@ -690,6 +1177,7 @@ adminRouter.patch('/users/:userId', authAdmin, async (req, res) => {
   const hasPassword = Object.prototype.hasOwnProperty.call(body, 'password')
   const hasRoleId = Object.prototype.hasOwnProperty.call(body, 'role_id')
   const hasIsActive = Object.prototype.hasOwnProperty.call(body, 'is_active')
+  const hasBranch = Object.prototype.hasOwnProperty.call(body, 'branch')
 
   const username = hasUsername ? asString(body.username) : undefined
   const password = hasPassword ? asString(body.password) : undefined
@@ -699,13 +1187,20 @@ adminRouter.patch('/users/:userId', authAdmin, async (req, res) => {
       : asString(body.role_id) || null
     : undefined
   const parsedIsActive = hasIsActive ? parseOptionalBoolean(body.is_active) : undefined
+  const branch = hasBranch ? asString(body.branch) : undefined
+  const parsedBranch = hasBranch && isUserBranch(branch) ? branch : undefined
 
   if (hasIsActive && typeof parsedIsActive !== 'boolean') {
     res.status(400).json({ error: 'is_active debe ser true o false.' })
     return
   }
 
-  if (!hasUsername && !hasPassword && !hasRoleId && !hasIsActive) {
+  if (hasBranch && !isUserBranch(branch)) {
+    res.status(400).json({ error: 'La sucursal debe ser lanus, avellaneda u online.' })
+    return
+  }
+
+  if (!hasUsername && !hasPassword && !hasRoleId && !hasIsActive && !hasBranch) {
     res.status(400).json({ error: 'No se enviaron cambios para actualizar.' })
     return
   }
@@ -716,7 +1211,8 @@ adminRouter.patch('/users/:userId', authAdmin, async (req, res) => {
       username: hasUsername ? username : undefined,
       password: hasPassword ? password : undefined,
       roleId,
-      isActive: parsedIsActive
+      isActive: parsedIsActive,
+      branch: parsedBranch
     })
 
     if (!updated) {
@@ -1015,3 +1511,4 @@ adminRouter.patch('/activities/settings', authAdmin, async (req, res) => {
     throw error
   }
 })
+

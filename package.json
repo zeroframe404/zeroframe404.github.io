@@ -11,6 +11,7 @@
     "start:server": "node server/dist/index.js",
     "prisma:generate": "prisma generate --schema server/prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema server/prisma/schema.prisma",
+    "backfill:cotizacion-routing": "tsx server/scripts/backfill-cotizacion-routing.ts",
     "migrate:supabase": "tsx server/scripts/migrate-from-supabase.ts",
     "rehost:attachments": "tsx server/scripts/rehost-attachments.ts",
     "optimize:images": "node scripts/optimize-images.mjs",

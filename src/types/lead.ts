@@ -1,4 +1,9 @@
-﻿export type LeadFormType = 'cotizacion' | 'contacto'
+export type LeadFormType = 'cotizacion' | 'contacto'
+export type LeadRoutingBranch = 'avellaneda' | 'lanus' | 'lejanos'
+export type LeadRoutingStatus =
+  | 'resolved'
+  | 'fallback_invalid_cp'
+  | 'fallback_geocode_failed'
 
 export interface LeadPayload {
   tipo_formulario: LeadFormType
@@ -16,4 +21,13 @@ export interface LeadPayload {
   mensaje?: string
   consentimiento: boolean
   source_page: string
+}
+
+export interface LeadInsertResponse {
+  ok: boolean
+  id: string
+  routing_branch?: LeadRoutingBranch
+  routing_distance_km?: number | null
+  routing_status?: LeadRoutingStatus
+  redirect_url?: string
 }

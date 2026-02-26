@@ -22,8 +22,11 @@ const RoturaReportForm = lazy(
 const RoboReportForm = lazy(
   () => import('../components/forms/RoboReportForm')
 )
+const IncendioReportForm = lazy(
+  () => import('../components/forms/IncendioReportForm')
+)
 
-type SiniestroType = 'choque' | 'rotura' | 'robo'
+type SiniestroType = 'choque' | 'rotura' | 'robo' | 'incendio'
 const SINIESTROS_WHATSAPP_NUMBER = '5491128486938'
 
 const steps = [
@@ -60,7 +63,8 @@ const steps = [
 const siniestroTypes: Array<{ id: SiniestroType; label: string }> = [
   { id: 'choque', label: 'Choque' },
   { id: 'rotura', label: 'Rotura' },
-  { id: 'robo', label: 'Robo total/parcial' }
+  { id: 'robo', label: 'Robo total/parcial' },
+  { id: 'incendio', label: 'Incendio total/parcial' }
 ]
 
 export default function SiniestrosPage() {
@@ -128,7 +132,7 @@ export default function SiniestrosPage() {
                     Elegi el tipo de siniestro para iniciar la gestion.
                   </p>
                 </div>
-                <div className="mb-6 grid gap-2 sm:grid-cols-3">
+                <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {siniestroTypes.map((type) => (
                     <button
                       key={type.id}
@@ -178,6 +182,18 @@ export default function SiniestrosPage() {
                     }
                   >
                     <RoboReportForm sourcePage="Siniestros" />
+                  </Suspense>
+                )}
+
+                {selectedSiniestroType === 'incendio' && (
+                  <Suspense
+                    fallback={
+                      <p className="py-6 text-center text-sm text-slate-500">
+                        Cargando formulario...
+                      </p>
+                    }
+                  >
+                    <IncendioReportForm sourcePage="Siniestros" />
                   </Suspense>
                 )}
               </div>

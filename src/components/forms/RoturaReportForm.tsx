@@ -446,7 +446,7 @@ export default function RoturaReportForm({ sourcePage = 'Siniestros' }: RoturaRe
         <h3 className="text-lg font-bold text-slate-900">Documentacion del vehiculo asegurado</h3>
 
         <label className="block text-sm font-medium text-slate-700">
-          1. Fotos del vehiculo danado (maximo 6, minimo 1, una debe mostrar patente) *
+          1. Fotos del vehiculo dañado (maximo 6, minimo 1, una debe mostrar patente) *
           <input
             type="file"
             accept={DOCUMENT_ACCEPT}

@@ -19,6 +19,7 @@ type SiniestroFormValues = {
   huboLesiones: BinaryAnswer
   hospitalLesiones: string
   impactoDanos: string
+  polizaTerceroTexto: string
 }
 
 const initialValues: SiniestroFormValues = {
@@ -33,7 +34,8 @@ const initialValues: SiniestroFormValues = {
   vinculoConTitular: '',
   huboLesiones: '',
   hospitalLesiones: '',
-  impactoDanos: ''
+  impactoDanos: '',
+  polizaTerceroTexto: ''
 }
 
 type SiniestroReportFormProps = {
@@ -145,8 +147,7 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
           cedulaFrontFile &&
           cedulaBackFile &&
           registroConductorFile &&
-          registroTerceroFile &&
-          polizaTerceroFile
+          registroTerceroFile
       ),
     [
       dniFrontFile,
@@ -154,8 +155,7 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
       cedulaFrontFile,
       cedulaBackFile,
       registroConductorFile,
-      registroTerceroFile,
-      polizaTerceroFile
+      registroTerceroFile
     ]
   )
 
@@ -237,12 +237,19 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
       cedulaFrontFile,
       cedulaBackFile,
       registroConductorFile,
-      registroTerceroFile,
-      polizaTerceroFile
+      registroTerceroFile
     ].filter(Boolean) as File[]
 
     if (!singleFiles.every(isAllowedDocument)) {
       return 'Los archivos obligatorios deben ser PNG, JPG o PDF.'
+    }
+
+    if (!polizaTerceroFile && !values.polizaTerceroTexto.trim()) {
+      return 'Adjunta la poliza del tercero o completa aseguradora y numero de poliza.'
+    }
+
+    if (polizaTerceroFile && !isAllowedDocument(polizaTerceroFile)) {
+      return 'La poliza del tercero debe ser PNG, JPG o PDF.'
     }
 
     return null
@@ -264,6 +271,11 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
         values.huboLesiones === 'si' ? `Si (${values.hospitalLesiones.trim()})` : 'No'
       }`,
       `7) Impacto y danos: ${values.impactoDanos.trim()}`,
+      `8) Poliza del tercero: ${
+        polizaTerceroFile
+          ? `Adjunta (${polizaTerceroFile.name})`
+          : values.polizaTerceroTexto.trim()
+      }`,
       `Croquis adjunto: ${croquisFile ? 'Si' : 'No'}`
     ]
 
@@ -306,7 +318,8 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
         detalleTexto: buildMessage(reportId),
         payloadJson: {
           reportId,
-          ...values
+          ...values,
+          polizaTerceroAdjunta: Boolean(polizaTerceroFile)
         },
         fileGroups
       })
@@ -572,7 +585,7 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
         </label>
 
         <label className="block text-sm font-medium text-slate-700">
-          2. Poliza del seguro del tercero (aseguradora y numero de poliza) *
+          2. Poliza del seguro del tercero (adjunto opcional si completas texto) *
           <input
             type="file"
             accept={DOCUMENT_ACCEPT}
@@ -580,6 +593,16 @@ export default function SiniestroReportForm({ sourcePage = 'Siniestros' }: Sinie
             onChange={(event) => setPolizaTerceroFile(getSingleFile(event.target.files))}
           />
           <UploadList files={polizaTerceroFile ? [polizaTerceroFile] : []} />
+        </label>
+
+        <label className="block text-sm font-medium text-slate-700">
+          Datos de poliza del tercero (aseguradora y numero, obligatorio si no adjuntas archivo) *
+          <textarea
+            className="input-base min-h-24"
+            value={values.polizaTerceroTexto}
+            onChange={(event) => updateField('polizaTerceroTexto', event.target.value)}
+            placeholder="Ej: Compania X - Poliza 123456789"
+          />
         </label>
       </section>
 

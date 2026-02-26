@@ -15,7 +15,10 @@ describe('CotizacionForm', () => {
   })
 
   it('envia los datos de autos cuando el formulario es valido y permite nombre opcional', async () => {
-    mockedInsertLead.mockResolvedValue(undefined)
+    mockedInsertLead.mockResolvedValue({
+      ok: true,
+      id: 'cotizacion-1'
+    })
 
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Autos" />)
 
@@ -87,7 +90,10 @@ describe('CotizacionForm', () => {
   })
 
   it('en ecomovilidad pide fecha de compra y no pide cobertura deseada', async () => {
-    mockedInsertLead.mockResolvedValue(undefined)
+    mockedInsertLead.mockResolvedValue({
+      ok: true,
+      id: 'cotizacion-2'
+    })
 
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Bicicleta" />)
 
@@ -141,7 +147,10 @@ describe('CotizacionForm', () => {
   })
 
   it('en celulares pide marca, modelo, año de fabricacion y cobertura', async () => {
-    mockedInsertLead.mockResolvedValue(undefined)
+    mockedInsertLead.mockResolvedValue({
+      ok: true,
+      id: 'cotizacion-3'
+    })
 
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Celulares" />)
 
@@ -194,7 +203,10 @@ describe('CotizacionForm', () => {
   })
 
   it('para personas muestra campos especificos y envia el detalle en mensaje', async () => {
-    mockedInsertLead.mockResolvedValue(undefined)
+    mockedInsertLead.mockResolvedValue({
+      ok: true,
+      id: 'cotizacion-4'
+    })
 
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Personas" />)
 

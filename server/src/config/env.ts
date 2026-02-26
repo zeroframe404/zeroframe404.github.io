@@ -20,6 +20,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(8787),
   DATABASE_URL: z.string().min(1),
+  GOOGLE_GEOCODING_API_KEY: optionalTrimmedString,
+  ROUTING_DISTANCE_THRESHOLD_KM: z.coerce.number().positive().max(200).default(20),
   ADMIN_DASHBOARD_PASSWORD: optionalTrimmedString,
   ADMIN_ROOT_USERNAME: optionalTrimmedString,
   ADMIN_ROOT_PASSWORD: optionalTrimmedString,

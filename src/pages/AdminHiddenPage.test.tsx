@@ -79,10 +79,15 @@ const sampleAdminData: AdminDashboardResponse = {
       marca_modelo: 'Fiat Cronos',
       anio: '2023',
       localidad: 'Avellaneda',
+      codigo_postal: '1870',
       uso: 'particular',
       cobertura_deseada: 'todo_riesgo',
       motivo_contacto: 'cotizacion',
       mensaje: 'Quiero cotizar',
+      routing_branch: 'avellaneda',
+      routing_distance_km: 2.45,
+      routing_status: 'resolved',
+      routing_overridden: false,
       source_page: 'Cotizacion'
     }
   ],
@@ -98,10 +103,15 @@ const sampleAdminData: AdminDashboardResponse = {
       marca_modelo: null,
       anio: null,
       localidad: null,
+      codigo_postal: null,
       uso: null,
       cobertura_deseada: null,
       motivo_contacto: 'siniestro',
       mensaje: 'Detalle del siniestro',
+      routing_branch: null,
+      routing_distance_km: null,
+      routing_status: null,
+      routing_overridden: false,
       source_page: 'Siniestros'
     }
   ],

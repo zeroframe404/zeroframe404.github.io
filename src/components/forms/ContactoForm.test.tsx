@@ -15,7 +15,10 @@ describe('ContactoForm', () => {
   })
 
   it('envía los datos de contacto al guardar un lead', async () => {
-    mockedInsertLead.mockResolvedValue(undefined)
+    mockedInsertLead.mockResolvedValue({
+      ok: true,
+      id: 'contacto-1'
+    })
 
     render(<ContactoForm sourcePage="Contacto" />)
 

@@ -9,10 +9,15 @@ export interface AdminLeadRow {
   marca_modelo: string | null
   anio: string | null
   localidad: string | null
+  codigo_postal: string | null
   uso: string | null
   cobertura_deseada: string | null
   motivo_contacto: string | null
   mensaje: string | null
+  routing_branch: CotizacionRoutingBranch | null
+  routing_distance_km: number | null
+  routing_status: CotizacionRoutingStatus | null
+  routing_overridden: boolean
   source_page: string
 }
 
@@ -24,6 +29,12 @@ export interface AdminPermissionMap {
 }
 
 export type AdminLogAutoClearUnit = 'day' | 'week' | 'month'
+export type AdminUserBranch = 'lanus' | 'avellaneda' | 'online'
+export type CotizacionRoutingBranch = 'avellaneda' | 'lanus' | 'lejanos'
+export type CotizacionRoutingStatus =
+  | 'resolved'
+  | 'fallback_invalid_cp'
+  | 'fallback_geocode_failed'
 
 export interface AdminSessionUser {
   id: string
@@ -69,6 +80,7 @@ export interface AdminUserRow {
   username: string
   is_super_admin: boolean
   is_active: boolean
+  branch: AdminUserBranch
   role_id: string | null
   role_name: string | null
   created_at: string

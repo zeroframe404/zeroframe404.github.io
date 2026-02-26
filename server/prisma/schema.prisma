@@ -11,6 +11,7 @@ enum SiniestroTipo {
   choque
   rotura
   robo
+  incendio
 }
 
 enum AdminLogAutoClearUnit {
@@ -19,25 +20,87 @@ enum AdminLogAutoClearUnit {
   month
 }
 
+enum AdminUserBranch {
+  lanus
+  avellaneda
+  online
+}
+
+enum CotizacionRoutingBranch {
+  avellaneda
+  lanus
+  lejanos
+}
+
+enum CotizacionRoutingStatus {
+  resolved
+  fallback_invalid_cp
+  fallback_geocode_failed
+}
+
 model Cotizacion {
-  id               String   @id @default(uuid()) @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at")
-  nombre           String
-  telefono         String
-  email            String?
-  tipoVehiculo     String?  @map("tipo_vehiculo")
-  marcaModelo      String?  @map("marca_modelo")
-  anio             String?
-  localidad        String?
-  codigoPostal     String?  @map("codigo_postal")
-  uso              String?
-  coberturaDeseada String?  @map("cobertura_deseada")
-  mensaje          String?
-  consentimiento   Boolean
-  sourcePage       String   @map("source_page")
+  id                        String                    @id @default(uuid()) @db.Uuid
+  createdAt                 DateTime                  @default(now()) @map("created_at")
+  nombre                    String
+  telefono                  String
+  email                     String?
+  tipoVehiculo              String?                   @map("tipo_vehiculo")
+  marcaModelo               String?                   @map("marca_modelo")
+  anio                      String?
+  localidad                 String?
+  codigoPostal              String?                   @map("codigo_postal")
+  uso                       String?
+  coberturaDeseada          String?                   @map("cobertura_deseada")
+  mensaje                   String?
+  consentimiento            Boolean
+  sourcePage                String                    @map("source_page")
+  routingBranch             CotizacionRoutingBranch   @default(lejanos) @map("routing_branch")
+  routingDistanceKm         Float?                    @map("routing_distance_km")
+  routingPostalCodeNormalized String?                 @map("routing_postal_code_normalized")
+  routingLatitude           Float?                    @map("routing_latitude")
+  routingLongitude          Float?                    @map("routing_longitude")
+  routingProvider           String?                   @map("routing_provider")
+  routingStatus             CotizacionRoutingStatus   @default(fallback_invalid_cp) @map("routing_status")
+  routingOverridden         Boolean                   @default(false) @map("routing_overridden")
+  routingOverriddenByUserId String?                   @map("routing_overridden_by_user_id") @db.Uuid
+  routingOverriddenAt       DateTime?                 @map("routing_overridden_at")
+  routingOverrideReason     String?                   @map("routing_override_reason")
+  routingOverriddenByUser   AdminUser?                @relation("CotizacionRoutingOverriddenBy", fields: [routingOverriddenByUserId], references: [id], onDelete: SetNull)
 
   @@index([createdAt(sort: Desc)])
+  @@index([routingBranch])
+  @@index([routingStatus])
+  @@index([routingOverridden])
+  @@index([routingOverriddenByUserId])
   @@map("cotizaciones")
+}
+
+model RoutingBranch {
+  key       CotizacionRoutingBranch @id
+  name      String
+  latitude  Float
+  longitude Float
+  isActive  Boolean                 @default(true) @map("is_active")
+  createdAt DateTime                @default(now()) @map("created_at")
+  updatedAt DateTime                @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("routing_branches")
+}
+
+model PostalGeocodeCache {
+  id                   String   @id @default(uuid()) @db.Uuid
+  postalCodeNormalized String   @unique @map("postal_code_normalized")
+  latitude             Float
+  longitude            Float
+  provider             String
+  formattedAddress     String?  @map("formatted_address")
+  lastUsedAt           DateTime @default(now()) @map("last_used_at")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([lastUsedAt(sort: Desc)])
+  @@map("postal_geocode_cache")
 }
 
 model Contacto {
@@ -110,18 +173,26 @@ model AdminRole {
 }
 
 model AdminUser {
-  id                 String         @id @default(uuid()) @db.Uuid
-  createdAt          DateTime       @default(now()) @map("created_at")
-  updatedAt          DateTime       @updatedAt @map("updated_at")
-  username           String
-  usernameNormalized String         @unique @map("username_normalized")
-  passwordHash       String         @map("password_hash")
-  isSuperAdmin       Boolean        @default(false) @map("is_super_admin")
-  isActive           Boolean        @default(true) @map("is_active")
-  roleId             String?        @map("role_id") @db.Uuid
-  role               AdminRole?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  sessions           AdminSession[]
-  activities         AdminActivity[]
+  id                        String         @id @default(uuid()) @db.Uuid
+  createdAt                 DateTime       @default(now()) @map("created_at")
+  updatedAt                 DateTime       @updatedAt @map("updated_at")
+  username                  String
+  usernameNormalized        String         @unique @map("username_normalized")
+  passwordHash              String         @map("password_hash")
+  isSuperAdmin              Boolean        @default(false) @map("is_super_admin")
+  isActive                  Boolean        @default(true) @map("is_active")
+  branch                    AdminUserBranch @default(online)
+  roleId                    String?        @map("role_id") @db.Uuid
+  role                      AdminRole?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  sessions                  AdminSession[]
+  activities                AdminActivity[]
+  cotizacionRoutingOverrides Cotizacion[]  @relation("CotizacionRoutingOverriddenBy")
+  createdTasks              AdminTask[]    @relation("AdminTaskCreatedBy")
+  completedTasks            AdminTask[]    @relation("AdminTaskCompletedBy")
+  taskAssignments           AdminTaskAssignment[]
+  taskAttachments           AdminTaskAttachment[]
+  taskMessages              AdminTaskMessage[] @relation("AdminTaskMessageSender")
+  taskMessageAttachments    AdminTaskMessageAttachment[]
 
   @@index([username])
   @@index([roleId])
@@ -159,6 +230,93 @@ model AdminActivity {
   @@index([actorUserId])
   @@index([action])
   @@map("admin_activities")
+}
+
+model AdminTask {
+  id                 String                @id @default(uuid()) @db.Uuid
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+  descriptionMarkdown String               @map("description_markdown")
+  createdByUserId    String?               @map("created_by_user_id") @db.Uuid
+  completedAt        DateTime?             @map("completed_at")
+  completedByUserId  String?               @map("completed_by_user_id") @db.Uuid
+  createdByUser      AdminUser?            @relation("AdminTaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  completedByUser    AdminUser?            @relation("AdminTaskCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  assignments        AdminTaskAssignment[]
+  attachments        AdminTaskAttachment[]
+  messages           AdminTaskMessage[]
+
+  @@index([createdAt(sort: Desc)])
+  @@index([createdByUserId])
+  @@index([completedByUserId])
+  @@index([completedAt])
+  @@map("admin_tasks")
+}
+
+model AdminTaskAssignment {
+  id        String    @id @default(uuid()) @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  taskId    String    @map("task_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  task      AdminTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
+  @@map("admin_task_assignments")
+}
+
+model AdminTaskAttachment {
+  id             String    @id @default(uuid()) @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  taskId         String    @map("task_id") @db.Uuid
+  uploaderUserId String?   @map("uploader_user_id") @db.Uuid
+  originalName   String    @map("original_name")
+  mimeType       String    @map("mime_type")
+  sizeBytes      Int       @map("size_bytes")
+  fileData       Bytes     @map("file_data")
+  fileSha256     String?   @map("file_sha256")
+  task           AdminTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploaderUser   AdminUser? @relation(fields: [uploaderUserId], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@index([uploaderUserId])
+  @@map("admin_task_attachments")
+}
+
+model AdminTaskMessage {
+  id          String                     @id @default(uuid()) @db.Uuid
+  createdAt   DateTime                   @default(now()) @map("created_at")
+  taskId      String                     @map("task_id") @db.Uuid
+  senderUserId String?                   @map("sender_user_id") @db.Uuid
+  bodyMarkdown String?                   @map("body_markdown")
+  task        AdminTask                  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  senderUser  AdminUser?                 @relation("AdminTaskMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  attachments AdminTaskMessageAttachment[]
+
+  @@index([taskId])
+  @@index([senderUserId])
+  @@index([createdAt(sort: Desc)])
+  @@map("admin_task_messages")
+}
+
+model AdminTaskMessageAttachment {
+  id             String           @id @default(uuid()) @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at")
+  messageId      String           @map("message_id") @db.Uuid
+  uploaderUserId String?          @map("uploader_user_id") @db.Uuid
+  originalName   String           @map("original_name")
+  mimeType       String           @map("mime_type")
+  sizeBytes      Int              @map("size_bytes")
+  fileData       Bytes            @map("file_data")
+  fileSha256     String?          @map("file_sha256")
+  message        AdminTaskMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  uploaderUser   AdminUser?       @relation(fields: [uploaderUserId], references: [id], onDelete: SetNull)
+
+  @@index([messageId])
+  @@index([uploaderUserId])
+  @@map("admin_task_message_attachments")
 }
 
 model AdminLogSettings {
