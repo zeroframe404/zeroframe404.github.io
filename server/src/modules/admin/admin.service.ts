@@ -258,6 +258,14 @@ function calculateNextAutoClearDate(settings: {
   return nextDate
 }
 
+function normalizeCotizacionRoutingBranch(branch: string): CotizacionRoutingBranch {
+  if (branch === 'lanus') {
+    return 'lanus'
+  }
+
+  return 'avellaneda'
+}
+
 function mapCotizacionToAdminRow(cotizacion: {
   id: string
   createdAt: Date
@@ -294,7 +302,7 @@ function mapCotizacionToAdminRow(cotizacion: {
     cobertura_deseada: cotizacion.coberturaDeseada,
     motivo_contacto: 'cotizacion',
     mensaje: cotizacion.mensaje,
-    routing_branch: cotizacion.routingBranch as CotizacionRoutingBranch,
+    routing_branch: normalizeCotizacionRoutingBranch(cotizacion.routingBranch),
     routing_distance_km: cotizacion.routingDistanceKm,
     routing_status: cotizacion.routingStatus as CotizacionRoutingStatus,
     routing_overridden: cotizacion.routingOverridden,
@@ -680,13 +688,15 @@ export async function overrideCotizacionRouting(input: {
   }
 
   const previous = mapCotizacionToAdminRow(existingCotizacion)
+  const normalizedRoutingBranch =
+    input.routingBranch === 'lejanos' ? 'avellaneda' : input.routingBranch
 
   const updatedCotizacion = await prisma.cotizacion.update({
     where: {
       id: input.cotizacionId
     },
     data: {
-      routingBranch: input.routingBranch as PrismaCotizacionRoutingBranch,
+      routingBranch: normalizedRoutingBranch as PrismaCotizacionRoutingBranch,
       routingOverridden: true,
       routingOverriddenByUserId: input.actorUserId,
       routingOverriddenAt: new Date(),

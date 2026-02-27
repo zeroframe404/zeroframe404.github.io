@@ -29,7 +29,6 @@ Variables clave:
   - `VITE_DEV_API_TARGET` (default: `http://localhost:8787`)
 - Backend:
   - `DATABASE_URL`
-  - `GOOGLE_GEOCODING_API_KEY`
   - `ROUTING_DISTANCE_THRESHOLD_KM` (default: `20`)
   - `ADMIN_ROOT_USERNAME` (default: `Daniel`)
   - `ADMIN_ROOT_PASSWORD` (default: `DockSud1945!#!`)
@@ -112,6 +111,7 @@ Notas:
 
 - Nginx público enruta `/` al frontend y `/api` al backend.
 - El backend ejecuta `prisma migrate deploy` al iniciar para aplicar migraciones en PostgreSQL.
+- El enrutamiento de cotizaciones usa Nominatim (OpenStreetMap) con cache local por código postal; no requiere API key.
 - Si usas HTTPS, mantener `NODE_ENV=production` y revisar `ADMIN_COOKIE_SAME_SITE` según tu flujo.
 
 ## Deploy en Render (frontend + backend separados)

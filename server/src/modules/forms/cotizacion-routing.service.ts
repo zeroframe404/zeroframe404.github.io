@@ -6,9 +6,15 @@ import {
 import { env } from '../../config/env.js'
 import { prisma } from '../db/prisma.js'
 
-const GOOGLE_GEOCODING_ENDPOINT = 'https://maps.googleapis.com/maps/api/geocode/json'
-const GEOCODING_PROVIDER = 'google'
+const NOMINATIM_GEOCODING_ENDPOINT = 'https://nominatim.openstreetmap.org/search'
+const GEOCODING_PROVIDER = 'nominatim'
 const GEOCODING_TIMEOUT_MS = 4_000
+const GEOCODING_MIN_INTERVAL_MS = 1_100
+const GEOCODING_CONTACT_EMAIL =
+  process.env.GEOCODING_CONTACT_EMAIL?.trim() ||
+  process.env.VITE_CONTACT_EMAIL?.trim() ||
+  'contacto@segurosdocksud.com'
+const GEOCODING_USER_AGENT = `SegurosDockSud/1.0 (${GEOCODING_CONTACT_EMAIL})`
 
 const WHATSAPP_BY_BRANCH: Record<PrismaCotizacionRoutingBranch, string> = {
   avellaneda: '5491140830416',
@@ -17,6 +23,8 @@ const WHATSAPP_BY_BRANCH: Record<PrismaCotizacionRoutingBranch, string> = {
 }
 
 let ensurePostgisPromise: Promise<void> | null = null
+let geocodingThrottlePromise: Promise<void> = Promise.resolve()
+let nextGeocodingSlotAt = 0
 
 interface GeocodingCoordinates {
   latitude: number
@@ -76,6 +84,14 @@ function parseDistanceKm(value: unknown) {
   return null
 }
 
+function normalizeRoutingBranchForBusiness(
+  branch: PrismaCotizacionRoutingBranch
+): PrismaCotizacionRoutingBranch {
+  return branch === PrismaCotizacionRoutingBranch.lejanos
+    ? PrismaCotizacionRoutingBranch.avellaneda
+    : branch
+}
+
 function roundDistanceKm(value: number) {
   return Math.round(value * 100) / 100
 }
@@ -85,17 +101,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  return null
 }
 
-function buildGoogleGeocodingUrl(postalCodeNormalized: string) {
+function buildNominatimGeocodingUrl(postalCodeNormalized: string, useFallbackQuery = false) {
   const params = new URLSearchParams({
-    key: env.GOOGLE_GEOCODING_API_KEY ?? '',
-    language: 'es',
-    components: `country:AR|postal_code:${postalCodeNormalized}`
+    format: 'jsonv2',
+    limit: '1',
+    addressdetails: '1',
+    countrycodes: 'ar',
+    'accept-language': 'es',
+    email: GEOCODING_CONTACT_EMAIL
   })
 
-  return `${GOOGLE_GEOCODING_ENDPOINT}?${params.toString()}`
+  if (useFallbackQuery) {
+    params.set('q', `${postalCodeNormalized}, Argentina`)
+  } else {
+    params.set('postalcode', postalCodeNormalized)
+  }
+
+  return `${NOMINATIM_GEOCODING_ENDPOINT}?${params.toString()}`
 }
 
 export function getRedirectUrlForRoutingBranch(branch: PrismaCotizacionRoutingBranch) {
@@ -113,6 +147,24 @@ async function ensurePostgisExtension() {
   }
 
   await ensurePostgisPromise
+}
+
+async function throttleGeocodingRequests() {
+  const runAfterCurrent = geocodingThrottlePromise.then(async () => {
+    const now = Date.now()
+    const waitMs = Math.max(0, nextGeocodingSlotAt - now)
+
+    if (waitMs > 0) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, waitMs)
+      })
+    }
+
+    nextGeocodingSlotAt = Date.now() + GEOCODING_MIN_INTERVAL_MS
+  })
+
+  geocodingThrottlePromise = runAfterCurrent.catch(() => undefined)
+  await runAfterCurrent
 }
 
 async function loadCachedGeocode(postalCodeNormalized: string): Promise<GeocodingCoordinates | null> {
@@ -143,21 +195,23 @@ async function loadCachedGeocode(postalCodeNormalized: string): Promise<Geocodin
   }
 }
 
-async function fetchGoogleGeocode(postalCodeNormalized: string): Promise<GeocodingCoordinates | null> {
-  if (!env.GOOGLE_GEOCODING_API_KEY) {
-    return null
-  }
-
+async function fetchNominatimGeocode(
+  postalCodeNormalized: string,
+  useFallbackQuery = false
+): Promise<GeocodingCoordinates | null> {
+  await throttleGeocodingRequests()
   const abortController = new AbortController()
   const timeoutId = setTimeout(() => {
     abortController.abort()
   }, GEOCODING_TIMEOUT_MS)
 
   try {
-    const response = await fetch(buildGoogleGeocodingUrl(postalCodeNormalized), {
+    const response = await fetch(buildNominatimGeocodingUrl(postalCodeNormalized, useFallbackQuery), {
       method: 'GET',
       headers: {
-        Accept: 'application/json'
+        Accept: 'application/json',
+        'User-Agent': GEOCODING_USER_AGENT,
+        Referer: 'https://dmartinezseguros.com'
       },
       signal: abortController.signal
     })
@@ -167,34 +221,25 @@ async function fetchGoogleGeocode(postalCodeNormalized: string): Promise<Geocodi
     }
 
     const payload = (await response.json()) as unknown
-    if (!isRecord(payload)) {
+    if (!Array.isArray(payload)) {
       return null
     }
 
-    const status = typeof payload.status === 'string' ? payload.status : ''
-    if (status !== 'OK') {
-      return null
-    }
-
-    const results = Array.isArray(payload.results) ? payload.results : []
-    const firstResult = results.find((item) => isRecord(item))
+    const firstResult = payload.find((item) => isRecord(item))
     if (!firstResult) {
       return null
     }
 
-    const geometry = isRecord(firstResult.geometry) ? firstResult.geometry : null
-    const location = geometry && isRecord(geometry.location) ? geometry.location : null
-
-    const latitude = location ? asNumber(location.lat) : null
-    const longitude = location ? asNumber(location.lng) : null
+    const latitude = asNumber(firstResult.lat)
+    const longitude = asNumber(firstResult.lon)
 
     if (latitude === null || longitude === null) {
       return null
     }
 
     const formattedAddress =
-      typeof firstResult.formatted_address === 'string'
-        ? firstResult.formatted_address
+      typeof firstResult.display_name === 'string'
+        ? firstResult.display_name
         : null
 
     return {
@@ -216,7 +261,9 @@ async function resolvePostalCoordinates(postalCodeNormalized: string): Promise<G
     return cached
   }
 
-  const fetched = await fetchGoogleGeocode(postalCodeNormalized)
+  const fetched =
+    (await fetchNominatimGeocode(postalCodeNormalized)) ??
+    (await fetchNominatimGeocode(postalCodeNormalized, true))
   if (!fetched) {
     return null
   }
@@ -291,7 +338,7 @@ function buildFallbackResolution(input: {
   postalCodeNormalized?: string | null
   coordinates?: GeocodingCoordinates | null
 }): CotizacionRoutingResolution {
-  const fallbackBranch = PrismaCotizacionRoutingBranch.lejanos
+  const fallbackBranch = PrismaCotizacionRoutingBranch.avellaneda
 
   return {
     routingBranch: fallbackBranch,
@@ -344,8 +391,8 @@ export async function resolveCotizacionRouting(input: {
   const thresholdKm = env.ROUTING_DISTANCE_THRESHOLD_KM
   const isNearby = nearestBranch.distanceKm <= thresholdKm
   const routingBranch = isNearby
-    ? nearestBranch.branch
-    : PrismaCotizacionRoutingBranch.lejanos
+    ? normalizeRoutingBranchForBusiness(nearestBranch.branch)
+    : PrismaCotizacionRoutingBranch.avellaneda
 
   return {
     routingBranch,

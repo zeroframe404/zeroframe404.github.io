@@ -116,6 +116,22 @@ describe('adminApi', () => {
     )
   })
 
+  it('fetchAdminDashboard accepts legacy lejanos routing branch', async () => {
+    const legacyPayload: AdminDashboardResponse = {
+      ...sampleDashboardResponse,
+      cotizaciones: [
+        {
+          ...sampleDashboardResponse.cotizaciones[0],
+          routing_branch: 'lejanos'
+        }
+      ]
+    }
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeJsonResponse(200, legacyPayload))
+
+    await expect(fetchAdminDashboard()).resolves.toEqual(legacyPayload)
+  })
+
   it('logoutAdmin calls /api/admin/logout', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')

@@ -153,6 +153,7 @@ describe('AdminHiddenPage', () => {
     mockedLoginAdmin.mockReset()
     mockedLogoutAdmin.mockReset()
     mockedTrackAdminView.mockReset()
+    mockedTrackAdminView.mockResolvedValue(undefined)
     mockedUpdateAdminLogSettings.mockReset()
     mockedUpdateAdminRole.mockReset()
     mockedUpdateAdminUser.mockReset()
@@ -206,6 +207,7 @@ describe('AdminHiddenPage', () => {
     })
 
     expect(screen.getByText('Laura Perez')).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Lejanos' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Cerrar sesion/i }))
     expect(mockedLogoutAdmin).toHaveBeenCalledTimes(1)
@@ -237,5 +239,35 @@ describe('AdminHiddenPage', () => {
     await waitFor(() => {
       expect(mockedDeleteAdminCotizacion).toHaveBeenCalledWith('cotizacion-1')
     })
+  })
+
+  it('shows cotizacion vehicle fields in detail modal', async () => {
+    mockedLoginAdmin.mockResolvedValue(undefined)
+    mockedFetchAdminDashboard.mockResolvedValue(sampleAdminData)
+
+    render(<AdminHiddenPage />)
+
+    fireEvent.change(screen.getByLabelText('USER'), {
+      target: { value: 'Daniel' }
+    })
+    fireEvent.change(screen.getByLabelText('PASSWORD'), {
+      target: { value: 'DockSud1945!#!' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Dashboard de envios' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver' }))
+
+    expect(screen.getByText('Tipo de vehiculo')).toBeInTheDocument()
+    expect(screen.getByText('Marca / modelo')).toBeInTheDocument()
+    expect(screen.getByText('Anio')).toBeInTheDocument()
+    expect(screen.getByText('Localidad')).toBeInTheDocument()
+    expect(screen.getByText('Uso')).toBeInTheDocument()
+    expect(screen.getByText('Cobertura deseada')).toBeInTheDocument()
+    expect(screen.getByText('Fiat Cronos')).toBeInTheDocument()
+    expect(screen.getByText('2023')).toBeInTheDocument()
   })
 })

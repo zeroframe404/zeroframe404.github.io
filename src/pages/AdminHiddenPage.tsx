@@ -104,12 +104,22 @@ const COTIZACION_ROUTING_OPTIONS: Array<{
   label: string
 }> = [
   { value: 'avellaneda', label: 'Avellaneda' },
-  { value: 'lanus', label: 'Lanus' },
-  { value: 'lejanos', label: 'Lejanos' }
+  { value: 'lanus', label: 'Lanus' }
 ]
+
+function normalizeCotizacionRoutingBranchForUi(
+  branch: CotizacionRoutingBranch | null | undefined
+): CotizacionRoutingBranch {
+  if (branch === 'lanus') {
+    return 'lanus'
+  }
+
+  return 'avellaneda'
+}
 
 function cotizacionRoutingLabel(branch: CotizacionRoutingBranch | null) {
   if (!branch) return '-'
+  if (branch === 'lejanos') return 'Avellaneda'
   return COTIZACION_ROUTING_OPTIONS.find((option) => option.value === branch)?.label ?? branch
 }
 
@@ -135,7 +145,7 @@ export default function AdminHiddenPage() {
 
   const [selectedLead, setSelectedLead] = useState<AdminLeadRow | null>(null)
   const [routingOverrideBranch, setRoutingOverrideBranch] =
-    useState<CotizacionRoutingBranch>('lejanos')
+    useState<CotizacionRoutingBranch>('avellaneda')
   const [routingOverrideReason, setRoutingOverrideReason] = useState('')
   const [isSavingRoutingOverride, setIsSavingRoutingOverride] = useState(false)
   const [selectedSiniestroLead, setSelectedSiniestroLead] = useState<AdminLeadRow | null>(null)
@@ -231,12 +241,12 @@ export default function AdminHiddenPage() {
 
   useEffect(() => {
     if (selectedLead?.tipo_formulario !== 'cotizacion') {
-      setRoutingOverrideBranch('lejanos')
+      setRoutingOverrideBranch('avellaneda')
       setRoutingOverrideReason('')
       return
     }
 
-    setRoutingOverrideBranch(selectedLead.routing_branch ?? 'lejanos')
+    setRoutingOverrideBranch(normalizeCotizacionRoutingBranchForUi(selectedLead.routing_branch))
     setRoutingOverrideReason('')
   }, [selectedLead])
 
@@ -312,7 +322,7 @@ export default function AdminHiddenPage() {
     setError(null)
     setCotizacionRoutingFilter('all')
     setSelectedLead(null)
-    setRoutingOverrideBranch('lejanos')
+    setRoutingOverrideBranch('avellaneda')
     setRoutingOverrideReason('')
     setIsSavingRoutingOverride(false)
     setSelectedSiniestroLead(null)
@@ -1105,6 +1115,30 @@ export default function AdminHiddenPage() {
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Telefono</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.telefono || '-'}</dd></div>
               {selectedLead.tipo_formulario === 'cotizacion' && (
                 <>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo de vehiculo</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.tipo_vehiculo || '-'}</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Marca / modelo</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.marca_modelo || '-'}</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Anio</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.anio || '-'}</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Localidad</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.localidad || '-'}</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Uso</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.uso || '-'}</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cobertura deseada</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.cobertura_deseada || '-'}</dd>
+                  </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                     <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Codigo postal</dt>
                     <dd className="mt-1 text-sm text-slate-800">{selectedLead.codigo_postal || '-'}</dd>

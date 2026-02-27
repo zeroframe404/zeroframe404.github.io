@@ -826,16 +826,19 @@ adminRouter.patch('/cotizaciones/:cotizacionId/routing', authAdmin, async (req, 
     return
   }
 
-  const routingBranchRaw = asString(req.body?.routing_branch).toLowerCase()
-  if (!isCotizacionRoutingBranch(routingBranchRaw)) {
-    res.status(400).json({ error: 'La sucursal debe ser avellaneda, lanus o lejanos.' })
+  const routingBranchInput = asString(req.body?.routing_branch).toLowerCase()
+  if (!isCotizacionRoutingBranch(routingBranchInput)) {
+    res
+      .status(400)
+      .json({ error: 'La sucursal debe ser avellaneda o lanus. lejanos se acepta solo por compatibilidad.' })
     return
   }
+  const routingBranch = routingBranchInput === 'lejanos' ? 'avellaneda' : routingBranchInput
 
   const reason = asString(req.body?.reason) || null
   const updated = await overrideCotizacionRouting({
     cotizacionId,
-    routingBranch: routingBranchRaw,
+    routingBranch,
     reason,
     actorUserId: currentSession.user.id
   })
