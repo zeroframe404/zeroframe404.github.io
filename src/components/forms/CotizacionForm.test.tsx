@@ -210,7 +210,7 @@ describe('CotizacionForm', () => {
 
     render(<CotizacionForm sourcePage="Cotizacion" insuranceType="Personas" />)
 
-    expect(screen.queryByLabelText('Localidad *')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Localidad (opcional)')).toBeInTheDocument()
     expect(screen.queryByLabelText('Marca *')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Cobertura deseada *')).not.toBeInTheDocument()
 

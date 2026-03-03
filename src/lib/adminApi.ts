@@ -116,6 +116,7 @@ function isAdminDashboardResponse(value: unknown): value is AdminDashboardRespon
     isAdminSessionUser(value.current_user) &&
     isAdminPermissionMap(value.permissions) &&
     typeof value.can_manage_access === 'boolean' &&
+    typeof value.can_manage_admin_accounts === 'boolean' &&
     typeof value.can_view_activities === 'boolean'
   )
 }
@@ -677,6 +678,7 @@ export async function createAdminUser(input: {
   password: string
   roleId: string | null
   branch: AdminUserBranch
+  isSuperAdmin?: boolean
 }) {
   const response = await apiRequest('/api/admin/users', {
     method: 'POST',
@@ -687,7 +689,8 @@ export async function createAdminUser(input: {
       username: input.username,
       password: input.password,
       role_id: input.roleId,
-      branch: input.branch
+      branch: input.branch,
+      is_super_admin: input.isSuperAdmin === true
     })
   })
 

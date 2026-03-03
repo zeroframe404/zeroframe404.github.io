@@ -31,3 +31,23 @@ export interface LeadInsertResponse {
   routing_status?: LeadRoutingStatus
   redirect_url?: string
 }
+
+export interface LocationAddressRow {
+  provider: string
+  latitude: number
+  longitude: number
+  display_name: string | null
+  street: string | null
+  house_number: string | null
+  line: string | null
+  postal_code: string | null
+  city: string | null
+  neighborhood: string | null
+  state: string | null
+  country: string | null
+}
+
+export interface LocationAddressResponse {
+  ok: boolean
+  address: LocationAddressRow
+}

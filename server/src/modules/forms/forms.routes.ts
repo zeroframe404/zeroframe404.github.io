@@ -12,6 +12,8 @@ import {
   MAX_SINIESTRO_FILES
 } from '../../utils/validation/files.js'
 import { resolveCotizacionRouting } from './cotizacion-routing.service.js'
+import { getVehicleCategories } from './vehicle-categories.service.js'
+import { resolveAddressFromCoordinates } from './address-autofill.service.js'
 
 const siniestroUpload = multer({
   storage: multer.memoryStorage(),
@@ -35,6 +37,19 @@ function parseOptionalBoolean(value: unknown) {
   }
 
   return undefined
+}
+
+function parseCoordinate(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  return null
 }
 
 function sanitizeFileName(fileName: string) {
@@ -77,6 +92,42 @@ function toPrismaBytes(content: Buffer) {
 }
 
 export const formsRouter = Router()
+
+formsRouter.get('/vehicle-categories', (_req, res) => {
+  res.status(200).json({
+    categories: getVehicleCategories()
+  })
+})
+
+formsRouter.get('/location-address', async (req, res) => {
+  const latitude = parseCoordinate(req.query?.lat)
+  const longitude = parseCoordinate(req.query?.lon)
+
+  if (latitude === null || longitude === null) {
+    res.status(400).json({ error: 'lat y lon son obligatorios.' })
+    return
+  }
+
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    res.status(400).json({ error: 'Las coordenadas son invalidas.' })
+    return
+  }
+
+  const resolvedAddress = await resolveAddressFromCoordinates({
+    latitude,
+    longitude
+  })
+
+  if (!resolvedAddress) {
+    res.status(502).json({ error: 'No pudimos obtener la direccion para esta ubicacion.' })
+    return
+  }
+
+  res.status(200).json({
+    ok: true,
+    address: resolvedAddress
+  })
+})
 
 formsRouter.post('/cotizaciones', async (req, res) => {
   const telefono = asString(req.body?.telefono)

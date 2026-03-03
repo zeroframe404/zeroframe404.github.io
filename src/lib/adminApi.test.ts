@@ -55,6 +55,7 @@ const sampleDashboardResponse: AdminDashboardResponse = {
     can_delete_siniestros: true
   },
   can_manage_access: true,
+  can_manage_admin_accounts: true,
   can_view_activities: true
 }
 

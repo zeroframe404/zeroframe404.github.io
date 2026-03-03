@@ -211,15 +211,41 @@ export default function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 md:flex-row">
-          <p className="text-sm text-slate-400">
-            &copy; {new Date().getFullYear()} {SITE_NAME}. Todos los derechos
-            reservados.
-          </p>
-          <p className="max-w-lg text-center text-xs text-slate-500 md:text-right">
-            Las cotizaciones son orientativas y sujetas a evaluaci&oacute;n. Las
-            coberturas dependen de la aseguradora y condiciones de cada p&oacute;liza.
-          </p>
+        <div className="mt-12 border-t border-white/10 pt-8">
+          <div className="mb-6 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-8">
+            <img
+              src="/LogoSSN.webp"
+              alt="Superintendencia de Seguros de la Nacion"
+              loading="lazy"
+              decoding="async"
+              className="h-auto w-40 max-w-full object-contain"
+            />
+            <a
+              href="http://qr.afip.gob.ar/?qr=dOPzyJ_GsmAV4Oy0E4RoAg,,"
+              target="_F960AFIPInfo"
+              rel="noopener noreferrer"
+              className="inline-flex"
+            >
+              <img
+                src="http://www.afip.gob.ar/images/f960/DATAWEB.jpg"
+                alt="AFIP Formulario 960/D Data Fiscal"
+                loading="lazy"
+                decoding="async"
+                className="h-auto w-[92px] border-0 object-contain"
+              />
+            </a>
+          </div>
+
+          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+            <p className="text-sm text-slate-400">
+              &copy; {new Date().getFullYear()} {SITE_NAME}. Todos los derechos
+              reservados.
+            </p>
+            <p className="max-w-lg text-center text-xs text-slate-500 md:text-right">
+              Las cotizaciones son orientativas y sujetas a evaluaci&oacute;n. Las
+              coberturas dependen de la aseguradora y condiciones de cada p&oacute;liza.
+            </p>
+          </div>
         </div>
       </div>
 

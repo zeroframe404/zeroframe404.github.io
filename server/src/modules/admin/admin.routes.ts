@@ -8,6 +8,7 @@ import { asString } from '../../utils/validation/common.js'
 import {
   ADMIN_COOKIE_NAME,
   assignAdminUserRole,
+  canManageAdminAccounts,
   canAdminPerform,
   clearAdminActivities,
   createAdminRole,
@@ -253,7 +254,7 @@ function requireSuperAdmin(
     return true
   }
 
-  res.status(403).json({ error: 'Solo el admin principal puede realizar esta accion.' })
+  res.status(403).json({ error: 'Solo un administrador general puede realizar esta accion.' })
   return false
 }
 
@@ -1111,11 +1112,28 @@ adminRouter.post('/users', authAdmin, async (req, res) => {
     return
   }
 
-  const username = asString(req.body?.username)
-  const password = asString(req.body?.password)
-  const roleIdRaw = req.body?.role_id
-  const branchRaw = asString(req.body?.branch)
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const username = asString(body.username)
+  const password = asString(body.password)
+  const roleIdRaw = body.role_id
+  const branchRaw = asString(body.branch)
   const roleId = roleIdRaw === null ? null : asString(roleIdRaw) || null
+  const hasIsSuperAdmin = Object.prototype.hasOwnProperty.call(body, 'is_super_admin')
+  const parsedIsSuperAdmin = hasIsSuperAdmin
+    ? parseOptionalBoolean(body.is_super_admin)
+    : false
+
+  if (hasIsSuperAdmin && typeof parsedIsSuperAdmin !== 'boolean') {
+    res.status(400).json({ error: 'is_super_admin debe ser true o false.' })
+    return
+  }
+
+  const isSuperAdmin = parsedIsSuperAdmin === true
+  const canManageAdminAccountsForSession = await canManageAdminAccounts(currentSession)
+  if (isSuperAdmin && !canManageAdminAccountsForSession) {
+    res.status(403).json({ error: 'Solo Daniel puede crear otros administradores.' })
+    return
+  }
 
   if (!isUserBranch(branchRaw)) {
     res.status(400).json({ error: 'La sucursal debe ser lanus, avellaneda u online.' })
@@ -1132,7 +1150,9 @@ adminRouter.post('/users', authAdmin, async (req, res) => {
       username,
       password,
       roleId,
-      branch: branchRaw
+      branch: branchRaw,
+      isSuperAdmin,
+      canCreateSuperAdmin: canManageAdminAccountsForSession
     })
 
     await registerAdminActivity({
@@ -1316,7 +1336,11 @@ adminRouter.delete('/users/:userId', authAdmin, async (req, res) => {
   }
 
   try {
-    const deleted = await deleteAdminUser(userId)
+    const canManageAdminAccountsForSession = await canManageAdminAccounts(currentSession)
+    const deleted = await deleteAdminUser({
+      userId,
+      canDeleteSuperAdmin: canManageAdminAccountsForSession
+    })
     if (!deleted) {
       res.status(404).json({ error: 'Usuario no encontrado.' })
       return
@@ -1333,7 +1357,8 @@ adminRouter.delete('/users/:userId', authAdmin, async (req, res) => {
     res.status(200).json({ ok: true })
   } catch (error) {
     if (error instanceof Error) {
-      res.status(400).json({ error: error.message })
+      const statusCode = error.message.includes('Solo Daniel') ? 403 : 400
+      res.status(statusCode).json({ error: error.message })
       return
     }
 

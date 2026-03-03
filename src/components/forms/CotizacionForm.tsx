@@ -1,7 +1,7 @@
 import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { insertLead } from '../../lib/leads'
+import { getLocationAddress, insertLead } from '../../lib/leads'
 import SimulatedSuccessBadge from './SimulatedSuccessBadge'
 
 interface CotizacionFormValues {
@@ -9,6 +9,7 @@ interface CotizacionFormValues {
   nombre: string
   telefono: string
   email: string
+  direccion: string
   codigo_postal: string
   cantidad_personas: string
   tipo_trabajo: string
@@ -34,6 +35,7 @@ const buildInitialValues = (insuranceType?: string): CotizacionFormValues => ({
   nombre: '',
   telefono: '',
   email: '',
+  direccion: '',
   codigo_postal: '',
   cantidad_personas: '',
   tipo_trabajo: '',
@@ -61,6 +63,75 @@ interface CotizacionFormProps {
 
 const AVELLANEDA_WHATSAPP_NUMBER = '5491140830416'
 
+interface BrowserConnection {
+  type?: string
+}
+
+interface BrowserNavigator extends Navigator {
+  connection?: BrowserConnection
+  mozConnection?: BrowserConnection
+  webkitConnection?: BrowserConnection
+}
+
+interface CoordinatesState {
+  latitude: number
+  longitude: number
+}
+
+function getBrowserConnectionType() {
+  const nav = navigator as BrowserNavigator
+  const connection = nav.connection || nav.mozConnection || nav.webkitConnection
+  const rawType = typeof connection?.type === 'string' ? connection.type : ''
+  return rawType.trim().toLowerCase()
+}
+
+function canUseWifiOnlyAutofill() {
+  const connectionType = getBrowserConnectionType()
+  if (!connectionType || connectionType === 'unknown') {
+    return { allowed: true, canVerify: false }
+  }
+
+  if (connectionType !== 'wifi') {
+    return {
+      allowed: false,
+      canVerify: true,
+      reason:
+        connectionType === 'cellular'
+          ? 'Detectamos datos moviles. Esta funcion solo puede hacerse desde casa en una red wifi.'
+          : 'Esta funcion solo puede hacerse desde casa en una red wifi.'
+    }
+  }
+
+  return { allowed: true, canVerify: true }
+}
+
+function getCurrentPosition() {
+  return new Promise<GeolocationPosition>((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 12_000,
+      maximumAge: 0
+    })
+  })
+}
+
+function getGeolocationErrorMessage(error: unknown) {
+  const code = typeof error === 'object' && error !== null ? (error as { code?: unknown }).code : null
+  if (code === 1) {
+    return 'Necesitamos permiso de ubicacion para completar la direccion automaticamente.'
+  }
+
+  if (code === 2) {
+    return 'No pudimos obtener una ubicacion precisa. Intenta nuevamente desde una zona con mejor senal.'
+  }
+
+  if (code === 3) {
+    return 'La obtencion de ubicacion demoro demasiado. Intenta de nuevo.'
+  }
+
+  return 'No pudimos obtener tu ubicacion en este momento.'
+}
+
 export default function CotizacionForm({
   sourcePage = 'Cotizacion',
   insuranceType
@@ -69,6 +140,11 @@ export default function CotizacionForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isAutofillingAddress, setIsAutofillingAddress] = useState(false)
+  const [addressAutofillError, setAddressAutofillError] = useState<string | null>(null)
+  const [addressAutofillSuccess, setAddressAutofillSuccess] = useState<string | null>(null)
+  const [autofilledCoordinates, setAutofilledCoordinates] = useState<CoordinatesState | null>(null)
+  const [wifiCheckUnavailable, setWifiCheckUnavailable] = useState(false)
 
   const updateField = <T extends keyof CotizacionFormValues>(
     field: T,
@@ -156,6 +232,81 @@ export default function CotizacionForm({
             ? hasCelularRequiredValues
             : hasVehicleRequiredValues))
 
+  const autofillAddressFromLocation = async () => {
+    setAddressAutofillError(null)
+    setAddressAutofillSuccess(null)
+    setWifiCheckUnavailable(false)
+
+    if (!window.isSecureContext) {
+      setAddressAutofillError('Esta funcion requiere HTTPS para usar geolocalizacion.')
+      return
+    }
+
+    const wifiValidation = canUseWifiOnlyAutofill()
+    if (!wifiValidation.allowed) {
+      setAddressAutofillError(
+        wifiValidation.reason ||
+          'Esta funcion solo puede hacerse desde casa en una red wifi.'
+      )
+      return
+    }
+
+    if (!wifiValidation.canVerify) {
+      setWifiCheckUnavailable(true)
+    }
+
+    if (!('geolocation' in navigator)) {
+      setAddressAutofillError('Tu dispositivo o navegador no soporta geolocalizacion.')
+      return
+    }
+
+    setIsAutofillingAddress(true)
+
+    try {
+      const position = await getCurrentPosition()
+      const latitude = position.coords.latitude
+      const longitude = position.coords.longitude
+
+      const resolvedAddress = await getLocationAddress({ latitude, longitude })
+
+      const nextDireccion =
+        resolvedAddress.line || resolvedAddress.display_name || values.direccion.trim()
+      const nextLocalidad =
+        resolvedAddress.city || resolvedAddress.neighborhood || values.localidad.trim()
+      const nextPostalCode = resolvedAddress.postal_code || values.codigo_postal.trim()
+
+      setValues((prev) => ({
+        ...prev,
+        direccion: nextDireccion,
+        localidad: nextLocalidad,
+        codigo_postal: nextPostalCode
+      }))
+
+      setAutofilledCoordinates({ latitude, longitude })
+
+      const chunks: string[] = []
+      if (nextDireccion) chunks.push(nextDireccion)
+      if (nextLocalidad) chunks.push(nextLocalidad)
+      if (nextPostalCode) chunks.push(`CP ${nextPostalCode}`)
+      setAddressAutofillSuccess(
+        chunks.length > 0
+          ? `Direccion detectada: ${chunks.join(' - ')}.`
+          : 'Ubicacion detectada, pero faltan algunos datos para completar direccion.'
+      )
+    } catch (caughtError) {
+      const typedMessage =
+        caughtError instanceof Error &&
+        caughtError.message.trim() &&
+        !caughtError.message.toLowerCase().includes('geolocationpositionerror')
+          ? caughtError.message
+          : null
+
+      setAddressAutofillError(typedMessage || getGeolocationErrorMessage(caughtError))
+    } finally {
+      setIsAutofillingAddress(false)
+    }
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -188,7 +339,20 @@ export default function CotizacionForm({
                 values.patente.trim() ? `Patente: ${values.patente.trim()}` : ''
               ]
 
-      const mensajeConDetalle = [...detalleSeguro, values.mensaje.trim()].filter(Boolean).join('\n')
+      const detalleUbicacion = [
+        values.direccion.trim() ? `Direccion declarada: ${values.direccion.trim()}` : '',
+        autofilledCoordinates
+          ? `Coordenadas aproximadas: ${autofilledCoordinates.latitude.toFixed(6)}, ${autofilledCoordinates.longitude.toFixed(6)}`
+          : ''
+      ]
+
+      const mensajeConDetalle = [
+        ...detalleSeguro,
+        ...detalleUbicacion,
+        values.mensaje.trim()
+      ]
+        .filter(Boolean)
+        .join('\n')
 
       const payload = {
         tipo_formulario: 'cotizacion' as const,
@@ -200,7 +364,7 @@ export default function CotizacionForm({
           ? undefined
           : `${values.marca.trim()} ${values.modelo.trim()}`.trim() || undefined,
         anio: isPersonInsurance ? undefined : values.anio.trim() || undefined,
-        localidad: isPersonInsurance ? undefined : values.localidad.trim() || undefined,
+        localidad: values.localidad.trim() || undefined,
         codigo_postal: values.codigo_postal.trim(),
         uso: isEcomovilityInsurance || isCelularInsurance || isPersonInsurance ? undefined : values.uso,
         cobertura_deseada:
@@ -219,6 +383,10 @@ export default function CotizacionForm({
 
       setSubmitted(true)
       setValues(buildInitialValues(insuranceType))
+      setAutofilledCoordinates(null)
+      setAddressAutofillError(null)
+      setAddressAutofillSuccess(null)
+      setWifiCheckUnavailable(false)
     } catch {
       setError('No pudimos enviar tu solicitud. Proba de nuevo en unos minutos.')
     } finally {
@@ -296,19 +464,89 @@ export default function CotizacionForm({
         />
       </label>
 
+      <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <button
+          type="button"
+          className="btn-outline w-full"
+          onClick={() => {
+            void autofillAddressFromLocation()
+          }}
+          disabled={isAutofillingAddress}
+        >
+          {isAutofillingAddress ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Detectando ubicacion...
+            </>
+          ) : (
+            'Completar direccion automaticamente con mi ubicacion (solo wifi)'
+          )}
+        </button>
+        <p className="text-xs text-slate-600">
+          Tomamos tu GPS del dispositivo y estimamos calle, altura y codigo postal con OpenStreetMap.
+        </p>
+        {wifiCheckUnavailable && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Tu navegador no permite verificar si estas en wifi. Si usas datos moviles, desactivalos antes de usar esta funcion.
+          </p>
+        )}
+        {addressAutofillSuccess && (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            {addressAutofillSuccess}
+          </p>
+        )}
+        {addressAutofillError && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {addressAutofillError}
+          </p>
+        )}
+      </section>
+
       {isPersonInsurance ? (
-        <label className="text-sm font-medium text-slate-700">
-          Codigo postal *
-          <input
-            className="input-base"
-            name="codigo_postal"
-            placeholder="Ej: 1870"
-            value={values.codigo_postal}
-            onChange={(event) => updateField('codigo_postal', event.target.value)}
-          />
-        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            Direccion (calle y numero) (opcional)
+            <input
+              className="input-base"
+              name="direccion"
+              placeholder="Ej: Mitre 1234"
+              value={values.direccion}
+              onChange={(event) => updateField('direccion', event.target.value)}
+            />
+          </label>
+          <label className="text-sm font-medium text-slate-700">
+            Codigo postal *
+            <input
+              className="input-base"
+              name="codigo_postal"
+              placeholder="Ej: 1870"
+              value={values.codigo_postal}
+              onChange={(event) => updateField('codigo_postal', event.target.value)}
+            />
+          </label>
+          <label className="text-sm font-medium text-slate-700">
+            Localidad (opcional)
+            <input
+              className="input-base"
+              name="localidad"
+              placeholder="Ej: Avellaneda"
+              value={values.localidad}
+              onChange={(event) => updateField('localidad', event.target.value)}
+            />
+          </label>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+            Direccion (calle y numero) (opcional)
+            <input
+              className="input-base"
+              name="direccion"
+              placeholder="Ej: Mitre 1234"
+              value={values.direccion}
+              onChange={(event) => updateField('direccion', event.target.value)}
+            />
+          </label>
           <label className="text-sm font-medium text-slate-700">
             Localidad *
             <input

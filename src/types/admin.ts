@@ -53,6 +53,7 @@ export interface AdminDashboardResponse {
   current_user: AdminSessionUser
   permissions: AdminPermissionMap
   can_manage_access: boolean
+  can_manage_admin_accounts: boolean
   can_view_activities: boolean
 }
 

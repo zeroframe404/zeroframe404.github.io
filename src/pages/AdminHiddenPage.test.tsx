@@ -133,6 +133,7 @@ const sampleAdminData: AdminDashboardResponse = {
     can_delete_siniestros: true
   },
   can_manage_access: true,
+  can_manage_admin_accounts: true,
   can_view_activities: true
 }
 
@@ -261,13 +262,22 @@ describe('AdminHiddenPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver' }))
 
+    expect(screen.getByRole('button', { name: 'Datos personales' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Objeto a asegurar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Configuracion' })).toBeInTheDocument()
+    expect(screen.getAllByText('Sucursal derivada').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Estado de ruteo')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Objeto a asegurar' }))
+
     expect(screen.getByText('Tipo de vehiculo')).toBeInTheDocument()
     expect(screen.getByText('Marca / modelo')).toBeInTheDocument()
-    expect(screen.getByText('Anio')).toBeInTheDocument()
+    expect(screen.getByText('Año')).toBeInTheDocument()
     expect(screen.getByText('Localidad')).toBeInTheDocument()
     expect(screen.getByText('Uso')).toBeInTheDocument()
     expect(screen.getByText('Cobertura deseada')).toBeInTheDocument()
     expect(screen.getByText('Fiat Cronos')).toBeInTheDocument()
     expect(screen.getByText('2023')).toBeInTheDocument()
+    expect(screen.getByText('Quiero cotizar')).toBeInTheDocument()
   })
 })

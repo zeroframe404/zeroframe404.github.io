@@ -75,6 +75,19 @@ type AdminActivityWithActor = Prisma.AdminActivityGetPayload<{
 let ensureRootAdminPromise: Promise<void> | null = null
 const LOG_SETTINGS_ID = 1
 
+async function getPrimarySuperAdmin() {
+  return prisma.adminUser.findFirst({
+    where: { isSuperAdmin: true },
+    orderBy: [{ createdAt: 'asc' }],
+    select: { id: true }
+  })
+}
+
+async function isPrimarySuperAdminUserId(userId: string) {
+  const primarySuperAdmin = await getPrimarySuperAdmin()
+  return primarySuperAdmin?.id === userId
+}
+
 function hashToken(rawToken: string) {
   return createHash('sha256')
     .update(`${rawToken}:${env.COOKIE_SECRET}`)
@@ -433,6 +446,14 @@ export function canAdminPerform(
   return Boolean(session.permissions[permission])
 }
 
+export async function canManageAdminAccounts(session: AdminSessionContext) {
+  if (!session.user.is_super_admin) {
+    return false
+  }
+
+  return isPrimarySuperAdminUserId(session.user.id)
+}
+
 export async function validateAdminCredentials(input: {
   username: string
   password: string
@@ -568,6 +589,7 @@ export async function getAdminDashboard(input: {
   const limit = normalizeLimit(input.rawLimit, 500, 1000)
   const canViewCotizaciones = canAdminPerform(input.session, 'can_view_cotizaciones')
   const canViewSiniestros = canAdminPerform(input.session, 'can_view_siniestros')
+  const canManageAdminAccountsForSession = await canManageAdminAccounts(input.session)
 
   const [cotizaciones, siniestros] = await Promise.all([
     canViewCotizaciones
@@ -597,6 +619,7 @@ export async function getAdminDashboard(input: {
     current_user: input.session.user,
     permissions: input.session.permissions,
     can_manage_access: input.session.user.is_super_admin,
+    can_manage_admin_accounts: canManageAdminAccountsForSession,
     can_view_activities: input.session.user.is_super_admin
   }
 }
@@ -798,6 +821,8 @@ export async function createAdminUser(input: {
   password: string
   roleId: string | null
   branch: AdminUserBranch
+  isSuperAdmin: boolean
+  canCreateSuperAdmin: boolean
 }): Promise<AdminUserRow> {
   await ensureRootAdminUser()
 
@@ -809,7 +834,11 @@ export async function createAdminUser(input: {
 
   const password = validatePasswordOrThrow(input.password)
 
-  if (input.roleId) {
+  if (input.isSuperAdmin && !input.canCreateSuperAdmin) {
+    throw new Error('Solo Daniel puede crear otros administradores.')
+  }
+
+  if (!input.isSuperAdmin && input.roleId) {
     const existingRole = await prisma.adminRole.findUnique({
       where: { id: input.roleId }
     })
@@ -824,10 +853,10 @@ export async function createAdminUser(input: {
       username,
       usernameNormalized: normalizedUsername,
       passwordHash: hashPassword(password),
-      isSuperAdmin: false,
+      isSuperAdmin: input.isSuperAdmin,
       isActive: true,
       branch: input.branch as PrismaAdminUserBranch,
-      roleId: input.roleId
+      roleId: input.isSuperAdmin ? null : input.roleId
     },
     include: {
       role: true
@@ -912,9 +941,12 @@ export async function updateAdminUser(input: {
   return mapAdminUserToRow(updatedUser)
 }
 
-export async function deleteAdminUser(userId: string) {
+export async function deleteAdminUser(input: {
+  userId: string
+  canDeleteSuperAdmin: boolean
+}) {
   const user = await prisma.adminUser.findUnique({
-    where: { id: userId }
+    where: { id: input.userId }
   })
 
   if (!user) {
@@ -922,11 +954,18 @@ export async function deleteAdminUser(userId: string) {
   }
 
   if (user.isSuperAdmin) {
-    throw new Error('No se puede eliminar el admin principal.')
+    const isPrimarySuperAdmin = await isPrimarySuperAdminUserId(user.id)
+    if (isPrimarySuperAdmin) {
+      throw new Error('No se puede eliminar el admin principal.')
+    }
+
+    if (!input.canDeleteSuperAdmin) {
+      throw new Error('Solo Daniel puede eliminar otros administradores.')
+    }
   }
 
   await prisma.adminUser.delete({
-    where: { id: userId }
+    where: { id: input.userId }
   })
 
   return true

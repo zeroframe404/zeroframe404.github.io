@@ -32,7 +32,6 @@ import type {
   AdminLogSettingsRow,
   AdminPermissionMap,
   CotizacionRoutingBranch,
-  CotizacionRoutingStatus,
   AdminUserBranch,
   AdminRoleRow,
   AdminSiniestroArchivo,
@@ -41,6 +40,7 @@ import type {
 import AdminTasksModal from '../components/admin/AdminTasksModal'
 
 type AdminSection = 'cotizaciones' | 'siniestros'
+type LeadDetailTab = 'personales' | 'objeto' | 'configuracion'
 
 type ActivityFilters = {
   actorUserId: string
@@ -123,13 +123,6 @@ function cotizacionRoutingLabel(branch: CotizacionRoutingBranch | null) {
   return COTIZACION_ROUTING_OPTIONS.find((option) => option.value === branch)?.label ?? branch
 }
 
-function cotizacionRoutingStatusLabel(status: CotizacionRoutingStatus | null) {
-  if (!status) return '-'
-  if (status === 'resolved') return 'Resuelto'
-  if (status === 'fallback_invalid_cp') return 'CP invalido'
-  return 'Fallo geocoding'
-}
-
 export default function AdminHiddenPage() {
   const [usernameInput, setUsernameInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
@@ -144,6 +137,7 @@ export default function AdminHiddenPage() {
   >('all')
 
   const [selectedLead, setSelectedLead] = useState<AdminLeadRow | null>(null)
+  const [leadDetailTab, setLeadDetailTab] = useState<LeadDetailTab>('personales')
   const [routingOverrideBranch, setRoutingOverrideBranch] =
     useState<CotizacionRoutingBranch>('avellaneda')
   const [routingOverrideReason, setRoutingOverrideReason] = useState('')
@@ -166,6 +160,7 @@ export default function AdminHiddenPage() {
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRoleId, setNewUserRoleId] = useState<string | null>(null)
   const [newUserBranch, setNewUserBranch] = useState<AdminUserBranch>('online')
+  const [newUserIsSuperAdmin, setNewUserIsSuperAdmin] = useState(false)
   const [isSavingRole, setIsSavingRole] = useState(false)
   const [isSavingUser, setIsSavingUser] = useState(false)
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
@@ -347,6 +342,7 @@ export default function AdminHiddenPage() {
   }
 
   const openLeadDetail = (section: AdminSection, lead: AdminLeadRow) => {
+    setLeadDetailTab('personales')
     setSelectedLead(lead)
     void trackAdminView({ section, targetId: lead.id }).catch(() => {
       // Ignore tracking errors in UI.
@@ -502,7 +498,7 @@ export default function AdminHiddenPage() {
     try {
       const payload = await fetchAdminAccessControl()
       setAccessData(payload)
-      if (!newUserRoleId && payload.roles.length > 0) {
+      if (!newUserRoleId && payload.roles.length > 0 && !newUserIsSuperAdmin) {
         setNewUserRoleId(payload.roles[0].id)
       }
     } catch (caughtError) {
@@ -510,12 +506,13 @@ export default function AdminHiddenPage() {
     } finally {
       setIsLoadingAccess(false)
     }
-  }, [dashboardData?.can_manage_access, newUserRoleId])
+  }, [dashboardData?.can_manage_access, newUserRoleId, newUserIsSuperAdmin])
 
   const openAccessModal = () => {
     setIsAccessModalOpen(true)
     setSuperAdminUsernameInput(dashboardData?.current_user.username ?? '')
     setSuperAdminPasswordInput('')
+    setNewUserIsSuperAdmin(false)
     void loadAccessData()
   }
 
@@ -559,12 +556,14 @@ export default function AdminHiddenPage() {
       await createAdminUser({
         username,
         password,
-        roleId: newUserRoleId,
-        branch: newUserBranch
+        roleId: newUserIsSuperAdmin ? null : newUserRoleId,
+        branch: newUserBranch,
+        isSuperAdmin: newUserIsSuperAdmin
       })
       setNewUserName('')
       setNewUserPassword('')
       setNewUserBranch('online')
+      setNewUserIsSuperAdmin(false)
       await loadAccessData()
     } catch (caughtError) {
       setAccessError(caughtError instanceof Error ? caughtError.message : 'No se pudo crear el usuario.')
@@ -772,11 +771,13 @@ export default function AdminHiddenPage() {
   }
 
   const removeUser = async (user: AdminUserRow) => {
-    if (user.is_super_admin) {
+    if (user.is_super_admin && !dashboardData?.can_manage_admin_accounts) {
+      setAccessError('Solo Daniel puede eliminar otros administradores.')
       return
     }
 
-    const confirmed = window.confirm(`Seguro que deseas eliminar el empleado "${user.username}"?`)
+    const targetLabel = user.is_super_admin ? 'administrador' : 'empleado'
+    const confirmed = window.confirm(`Seguro que deseas eliminar el ${targetLabel} "${user.username}"?`)
     if (!confirmed) {
       return
     }
@@ -789,7 +790,7 @@ export default function AdminHiddenPage() {
       await loadAccessData()
     } catch (caughtError) {
       setAccessError(
-        caughtError instanceof Error ? caughtError.message : 'No se pudo eliminar el empleado.'
+        caughtError instanceof Error ? caughtError.message : 'No se pudo eliminar el usuario.'
       )
     } finally {
       setDeletingUserId(null)
@@ -1108,117 +1109,169 @@ export default function AdminHiddenPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <dl className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">ID</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.id}</dd></div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha</dt><dd className="mt-1 text-sm text-slate-800">{formatDateTime(selectedLead.created_at)}</dd></div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.nombre || '-'}</dd></div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Telefono</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.telefono || '-'}</dd></div>
-              {selectedLead.tipo_formulario === 'cotizacion' && (
-                <>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo de vehiculo</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.tipo_vehiculo || '-'}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Marca / modelo</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.marca_modelo || '-'}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Anio</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.anio || '-'}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Localidad</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.localidad || '-'}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Uso</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.uso || '-'}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cobertura deseada</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.cobertura_deseada || '-'}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Codigo postal</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.codigo_postal || '-'}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sucursal derivada</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{cotizacionRoutingLabel(selectedLead.routing_branch)}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Distancia</dt>
-                    <dd className="mt-1 text-sm text-slate-800">
-                      {selectedLead.routing_distance_km === null
-                        ? '-'
-                        : `${selectedLead.routing_distance_km.toFixed(2)} km`}
-                    </dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado de ruteo</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{cotizacionRoutingStatusLabel(selectedLead.routing_status)}</dd>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Override manual</dt>
-                    <dd className="mt-1 text-sm text-slate-800">{selectedLead.routing_overridden ? 'Si' : 'No'}</dd>
-                  </div>
-                </>
-              )}
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:col-span-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mensaje</dt><dd className="mt-1 text-sm text-slate-800 whitespace-pre-wrap">{selectedLead.mensaje || '-'}</dd></div>
-            </dl>
-            {selectedLead.tipo_formulario === 'cotizacion' && permissions.can_delete_cotizaciones && (
-              <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
-                  Override manual de sucursal
-                </h3>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Sucursal
-                    <select
-                      value={routingOverrideBranch}
-                      onChange={(event) =>
-                        setRoutingOverrideBranch(event.target.value as CotizacionRoutingBranch)
-                      }
-                      className="input-base mt-1 w-full border-slate-300 bg-white text-slate-900"
-                      disabled={isSavingRoutingOverride}
-                    >
-                      {COTIZACION_ROUTING_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Motivo (opcional)
-                    <input
-                      type="text"
-                      value={routingOverrideReason}
-                      onChange={(event) => setRoutingOverrideReason(event.target.value)}
-                      className="input-base mt-1 w-full border-slate-300 bg-white text-slate-900"
-                      disabled={isSavingRoutingOverride}
-                    />
-                  </label>
-                </div>
-                <div className="mt-3">
+            {selectedLead.tipo_formulario === 'cotizacion' ? (
+              <>
+                <div className="mb-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="btn-outline"
-                    disabled={isSavingRoutingOverride}
-                    onClick={() => { void saveCotizacionRoutingOverride() }}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-semibold ${
+                      leadDetailTab === 'personales'
+                        ? 'border-brand-700 bg-brand-900 text-white'
+                        : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                    }`}
+                    onClick={() => setLeadDetailTab('personales')}
                   >
-                    {isSavingRoutingOverride ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      'Guardar override'
-                    )}
+                    Datos personales
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-md border px-3 py-1.5 text-xs font-semibold ${
+                      leadDetailTab === 'objeto'
+                        ? 'border-brand-700 bg-brand-900 text-white'
+                        : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                    }`}
+                    onClick={() => setLeadDetailTab('objeto')}
+                  >
+                    Objeto a asegurar
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-md border px-3 py-1.5 text-xs font-semibold ${
+                      leadDetailTab === 'configuracion'
+                        ? 'border-brand-700 bg-brand-900 text-white'
+                        : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                    }`}
+                    onClick={() => setLeadDetailTab('configuracion')}
+                  >
+                    Configuracion
                   </button>
                 </div>
-              </section>
+
+                {leadDetailTab === 'personales' && (
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">ID</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.id}</dd></div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha</dt><dd className="mt-1 text-sm text-slate-800">{formatDateTime(selectedLead.created_at)}</dd></div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.nombre || '-'}</dd></div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Telefono</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.telefono || '-'}</dd></div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.email || '-'}</dd></div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Codigo postal</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.codigo_postal || '-'}</dd></div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sucursal derivada</dt><dd className="mt-1 text-sm text-slate-800">{cotizacionRoutingLabel(selectedLead.routing_branch)}</dd></div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Distancia</dt>
+                      <dd className="mt-1 text-sm text-slate-800">
+                        {selectedLead.routing_distance_km === null
+                          ? '-'
+                          : `${selectedLead.routing_distance_km.toFixed(2)} km`}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+
+                {leadDetailTab === 'objeto' && (
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo de vehiculo</dt>
+                      <dd className="mt-1 text-sm text-slate-800">{selectedLead.tipo_vehiculo || '-'}</dd>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Marca / modelo</dt>
+                      <dd className="mt-1 text-sm text-slate-800">{selectedLead.marca_modelo || '-'}</dd>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Año</dt>
+                      <dd className="mt-1 text-sm text-slate-800">{selectedLead.anio || '-'}</dd>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Localidad</dt>
+                      <dd className="mt-1 text-sm text-slate-800">{selectedLead.localidad || '-'}</dd>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Uso</dt>
+                      <dd className="mt-1 text-sm text-slate-800">{selectedLead.uso || '-'}</dd>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cobertura deseada</dt>
+                      <dd className="mt-1 text-sm text-slate-800">{selectedLead.cobertura_deseada || '-'}</dd>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:col-span-2">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mensaje</dt>
+                      <dd className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{selectedLead.mensaje || '-'}</dd>
+                    </div>
+                  </dl>
+                )}
+
+                {leadDetailTab === 'configuracion' && (
+                  <div className="space-y-4">
+                    <dl className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Override manual</dt>
+                        <dd className="mt-1 text-sm text-slate-800">{selectedLead.routing_overridden ? 'Si' : 'No'}</dd>
+                      </div>
+                    </dl>
+                    {permissions.can_delete_cotizaciones && (
+                      <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                          Override manual de sucursal
+                        </h3>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Sucursal
+                            <select
+                              value={routingOverrideBranch}
+                              onChange={(event) =>
+                                setRoutingOverrideBranch(event.target.value as CotizacionRoutingBranch)
+                              }
+                              className="input-base mt-1 w-full border-slate-300 bg-white text-slate-900"
+                              disabled={isSavingRoutingOverride}
+                            >
+                              {COTIZACION_ROUTING_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Motivo (opcional)
+                            <input
+                              type="text"
+                              value={routingOverrideReason}
+                              onChange={(event) => setRoutingOverrideReason(event.target.value)}
+                              className="input-base mt-1 w-full border-slate-300 bg-white text-slate-900"
+                              disabled={isSavingRoutingOverride}
+                            />
+                          </label>
+                        </div>
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            className="btn-outline"
+                            disabled={isSavingRoutingOverride}
+                            onClick={() => { void saveCotizacionRoutingOverride() }}
+                          >
+                            {isSavingRoutingOverride ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Guardando...
+                              </>
+                            ) : (
+                              'Guardar override'
+                            )}
+                          </button>
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">ID</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.id}</dd></div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha</dt><dd className="mt-1 text-sm text-slate-800">{formatDateTime(selectedLead.created_at)}</dd></div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.nombre || '-'}</dd></div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Telefono</dt><dd className="mt-1 text-sm text-slate-800">{selectedLead.telefono || '-'}</dd></div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:col-span-2"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mensaje</dt><dd className="mt-1 text-sm text-slate-800 whitespace-pre-wrap">{selectedLead.mensaje || '-'}</dd></div>
+              </dl>
             )}
           </div>
         </div>
@@ -1334,7 +1387,7 @@ export default function AdminHiddenPage() {
                 <form className="mt-3 space-y-3" onSubmit={saveUser}>
                   <input type="text" value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Nombre de usuario" className="input-base w-full border-slate-300 bg-white text-slate-900" />
                   <input type="password" value={newUserPassword} onChange={(event) => setNewUserPassword(event.target.value)} placeholder="Contrasena" className="input-base w-full border-slate-300 bg-white text-slate-900" />
-                  <select value={newUserRoleId ?? ''} onChange={(event) => setNewUserRoleId(event.target.value || null)} className="input-base w-full border-slate-300 bg-white text-slate-900">
+                  <select value={newUserRoleId ?? ''} onChange={(event) => setNewUserRoleId(event.target.value || null)} className="input-base w-full border-slate-300 bg-white text-slate-900" disabled={newUserIsSuperAdmin}>
                     <option value="">Sin rol</option>
                     {accessData?.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
                   </select>
@@ -1345,6 +1398,24 @@ export default function AdminHiddenPage() {
                       </option>
                     ))}
                   </select>
+                  {dashboardData.can_manage_admin_accounts && (
+                    <label className="flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={newUserIsSuperAdmin}
+                        onChange={(event) => {
+                          const checked = event.target.checked
+                          setNewUserIsSuperAdmin(checked)
+                          if (checked) {
+                            setNewUserRoleId(null)
+                          } else if (!newUserRoleId && accessData?.roles.length) {
+                            setNewUserRoleId(accessData.roles[0].id)
+                          }
+                        }}
+                      />
+                      Crear como administrador general
+                    </label>
+                  )}
                   <button type="submit" className="btn-primary" disabled={isSavingUser}>{isSavingUser ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creando usuario...</> : 'Crear usuario'}</button>
                 </form>
                 <div className="mt-4 overflow-x-auto">
@@ -1353,7 +1424,7 @@ export default function AdminHiddenPage() {
                     <tbody>
                       {accessData?.users.map((user) => (
                         <tr key={user.id} className="border-b border-slate-100 align-top">
-                          <td className="px-2 py-2 text-slate-900"><div className="font-semibold">{user.username}</div>{user.is_super_admin && <div className="text-xs text-indigo-700">Admin principal</div>}</td>
+                          <td className="px-2 py-2 text-slate-900"><div className="font-semibold">{user.username}</div>{user.is_super_admin && <div className="text-xs text-indigo-700">Administrador general</div>}</td>
                           <td className="px-2 py-2 text-slate-700">
                             {user.is_super_admin ? (
                               <span>{user.role_name || 'Sin rol'}</span>
@@ -1391,7 +1462,18 @@ export default function AdminHiddenPage() {
                           <td className="px-2 py-2 text-slate-700">{user.is_active ? 'Si' : 'No'}</td>
                           <td className="px-2 py-2">
                             {user.is_super_admin ? (
-                              <span className="text-xs text-slate-500">Credenciales abajo</span>
+                              dashboardData.can_manage_admin_accounts && user.id !== dashboardData.current_user.id ? (
+                                <button
+                                  type="button"
+                                  className="rounded-md border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                  onClick={() => { void removeUser(user) }}
+                                  disabled={deletingUserId === user.id}
+                                >
+                                  {deletingUserId === user.id ? 'Eliminando...' : 'Eliminar admin'}
+                                </button>
+                              ) : (
+                                <span className="text-xs text-slate-500">Credenciales abajo</span>
+                              )
                             ) : (
                               <div className="flex flex-wrap gap-2">
                                 <button
